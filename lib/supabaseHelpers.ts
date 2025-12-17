@@ -22,16 +22,22 @@ export interface Link {
     url: string;
     active: boolean;
     position: number;
+    thumbnail_url?: string;
     created_at?: string;
 }
 
 export interface AppearanceSettings {
     user_id: string;
-    theme: 'simple' | 'dark' | 'midnight' | 'sunset' | 'ocean' | 'forest';
+    theme: 'simple' | 'dark' | 'midnight' | 'sunset' | 'ocean' | 'forest' | 'pastel' | 'retro' | 'custom';
     button_style: 'rounded' | 'square' | 'pill' | 'hard';
     button_fill: 'solid' | 'outline' | 'ghost';
     button_shadow: 'none' | 'soft' | 'hard';
-    font: 'sans' | 'serif' | 'mono';
+    font: 'sans' | 'serif' | 'mono' | 'montserrat' | 'lato' | 'oswald' | 'playfair' | 'outfit';
+    custom_theme_url?: string;
+    font_color?: string; // 'auto' | '#000000' | '#ffffff'
+    seo_title?: string;
+    seo_description?: string;
+    show_brand_tag?: boolean;
 }
 
 // -- Profile Functions --
@@ -186,4 +192,41 @@ export const updateAppearance = async (userId: string, settings: Partial<Appeara
 
     if (error) throw error;
     return data;
+};
+
+// -- Storage Functions --
+
+/**
+ * Upload an image (avatar or cover) to Supabase Storage.
+ * Returns the public URL of the uploaded file.
+ */
+export const uploadImage = async (
+    file: File,
+    bucket: 'avatars' | 'covers' | 'links',
+    userId: string
+): Promise<string | null> => {
+    // 1. Create a unique file path: userId/timestamp-filename
+    // Sanitize filename
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+
+    // 2. Upload
+    const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, {
+            upsert: true
+        });
+
+    if (uploadError) {
+        console.error(`Error uploading to ${bucket}:`, uploadError);
+        return null;
+    }
+
+    // 3. Get Public URL
+    const { data } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+    return data.publicUrl;
 };
