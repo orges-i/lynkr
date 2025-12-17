@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
    Layers,
    BarChart3,
@@ -33,6 +33,20 @@ import { Button } from '../ui/Button';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
+import {
+   fetchUserProfile,
+   fetchUserLinks,
+   fetchAppearanceSettings,
+   createLink,
+   updateLink as updateLinkInDb,
+   deleteLink as deleteLinkFromDb,
+   updateProfile,
+   updateAppearance,
+   Profile,
+   Link as SupabaseLink,
+   AppearanceSettings
+} from '../../lib/supabaseHelpers';
 
 // -- Types --
 type ViewState = 'links' | 'appearance' | 'analytics' | 'settings';
@@ -43,6 +57,7 @@ interface LinkItem {
    url: string;
    active: boolean;
    clicks: number;
+   position: number;
 }
 
 interface ProfileConfig {
@@ -59,9 +74,9 @@ interface ProfileConfig {
 
 // -- Mock Data --
 const initialLinks: LinkItem[] = [
-   { id: '1', title: 'My Latest Youtube Video', url: 'https://youtube.com/watch?v=123', active: true, clicks: 1240 },
-   { id: '2', title: 'Summer Collection 2024', url: 'https://myshop.com/summer', active: true, clicks: 850 },
-   { id: '3', title: 'Book a Consultation', url: 'https://calendly.com/me/30min', active: false, clicks: 45 },
+   { id: '1', title: 'My Latest Youtube Video', url: 'https://youtube.com/watch?v=123', active: true, clicks: 1240, position: 0 },
+   { id: '2', title: 'Summer Collection 2024', url: 'https://myshop.com/summer', active: true, clicks: 850, position: 1 },
+   { id: '3', title: 'Book a Consultation', url: 'https://calendly.com/me/30min', active: false, clicks: 45, position: 2 },
 ];
 
 const themes = {
@@ -179,27 +194,10 @@ const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig }> = ({ 
 
 const LinksView: React.FC<{
    links: LinkItem[],
-   setLinks: React.Dispatch<React.SetStateAction<LinkItem[]>>
-}> = ({ links, setLinks }) => {
-
-   const toggleLink = (id: string) => {
-      setLinks(links.map(l => l.id === id ? { ...l, active: !l.active } : l));
-   };
-
-   const deleteLink = (id: string) => {
-      setLinks(links.filter(l => l.id !== id));
-   };
-
-   const addNewLink = () => {
-      const newLink: LinkItem = {
-         id: Date.now().toString(),
-         title: 'Headline Title',
-         url: 'https://example.com',
-         active: true,
-         clicks: 0
-      };
-      setLinks([newLink, ...links]);
-   };
+   onAdd: () => void,
+   onDelete: (id: string) => void,
+   onUpdate: (id: string, updates: Partial<LinkItem>) => void
+}> = ({ links, onAdd, onDelete, onUpdate }) => {
 
    return (
       <div className="max-w-2xl mx-auto w-full animate-slide-up pb-24">
@@ -209,7 +207,7 @@ const LinksView: React.FC<{
          </div>
 
          <div className="mb-8">
-            <Button onClick={addNewLink} className="w-full py-6 text-lg shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
+            <Button onClick={onAdd} className="w-full py-6 text-lg shadow-lg hover:shadow-primary/20 transition-all duration-300 transform hover:-translate-y-1">
                <Plus className="w-5 h-5 mr-2" /> Add New Link
             </Button>
          </div>
@@ -228,21 +226,21 @@ const LinksView: React.FC<{
                               <input
                                  type="text"
                                  value={link.title}
-                                 onChange={(e) => setLinks(links.map(l => l.id === link.id ? { ...l, title: e.target.value } : l))}
+                                 onChange={(e) => onUpdate(link.id, { title: e.target.value })}
                                  className="w-full bg-transparent border-none p-0 text-base font-semibold text-primary focus:ring-0 placeholder-zinc-500 truncate"
                                  placeholder="Link Title"
                               />
                               <input
                                  type="text"
                                  value={link.url}
-                                 onChange={(e) => setLinks(links.map(l => l.id === link.id ? { ...l, url: e.target.value } : l))}
+                                 onChange={(e) => onUpdate(link.id, { url: e.target.value })}
                                  className="w-full bg-transparent border-none p-0 text-sm text-secondary focus:ring-0 placeholder-zinc-600 mt-1 truncate"
                                  placeholder="https://url..."
                               />
                            </div>
                            <div className="flex items-center gap-2 shrink-0">
                               <label className="relative inline-flex items-center cursor-pointer">
-                                 <input type="checkbox" checked={link.active} onChange={() => toggleLink(link.id)} className="sr-only peer" />
+                                 <input type="checkbox" checked={link.active} onChange={() => onUpdate(link.id, { active: !link.active })} className="sr-only peer" />
                                  <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
                               </label>
                            </div>
@@ -260,9 +258,9 @@ const LinksView: React.FC<{
                            <div className="flex items-center gap-4 text-xs text-secondary">
                               <span className="flex items-center gap-1">
                                  <BarChart3 className="w-3 h-3" />
-                                 {link.clicks} clicks
+                                 {link.clicks || 0} clicks
                               </span>
-                              <button onClick={() => deleteLink(link.id)} className="p-2 rounded-lg hover:bg-red-500/10 text-secondary hover:text-red-500 transition-colors">
+                              <button onClick={() => onDelete(link.id)} className="p-2 rounded-lg hover:bg-red-500/10 text-secondary hover:text-red-500 transition-colors">
                                  <Trash2 className="w-4 h-4" />
                               </button>
                            </div>
@@ -278,8 +276,8 @@ const LinksView: React.FC<{
 
 const AppearanceView: React.FC<{
    config: ProfileConfig,
-   setConfig: React.Dispatch<React.SetStateAction<ProfileConfig>>
-}> = ({ config, setConfig }) => {
+   onUpdate: (updates: Partial<ProfileConfig>) => void
+}> = ({ config, onUpdate }) => {
    return (
       <div className="max-w-2xl mx-auto w-full animate-slide-up space-y-12 pb-24">
          <div className="mb-8">
@@ -326,7 +324,7 @@ const AppearanceView: React.FC<{
                         <input
                            type="text"
                            value={config.username}
-                           onChange={(e) => setConfig({ ...config, username: e.target.value })}
+                           onChange={(e) => onUpdate({ username: e.target.value })}
                            className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                         />
                      </div>
@@ -334,7 +332,7 @@ const AppearanceView: React.FC<{
                         <label className="text-xs font-semibold text-secondary uppercase mb-1 block">Bio</label>
                         <textarea
                            value={config.bio}
-                           onChange={(e) => setConfig({ ...config, bio: e.target.value })}
+                           onChange={(e) => onUpdate({ bio: e.target.value })}
                            rows={3}
                            className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none"
                         />
@@ -350,7 +348,7 @@ const AppearanceView: React.FC<{
                {Object.keys(themes).map((themeKey) => (
                   <div
                      key={themeKey}
-                     onClick={() => setConfig({ ...config, theme: themeKey as any })}
+                     onClick={() => onUpdate({ theme: themeKey as any })}
                      className={`cursor-pointer group relative rounded-xl border-2 overflow-hidden transition-all ${config.theme === themeKey ? 'border-primary ring-2 ring-primary/20 scale-[1.02]' : 'border-transparent hover:border-border'}`}
                   >
                      <div className={`h-32 w-full ${themes[themeKey as keyof typeof themes]} p-4 flex flex-col items-center justify-center gap-2`}>
@@ -376,7 +374,7 @@ const AppearanceView: React.FC<{
                      {Object.keys(buttonStyles).map((style) => (
                         <button
                            key={style}
-                           onClick={() => setConfig({ ...config, buttonStyle: style as any })}
+                           onClick={() => onUpdate({ buttonStyle: style as any })}
                            className={`p-4 border rounded-lg hover:bg-surfaceHighlight transition-all flex flex-col items-center gap-2 ${config.buttonStyle === style ? 'border-primary bg-primary/5' : 'border-border'}`}
                         >
                            <div className={`w-full h-8 bg-primary ${buttonStyles[style as keyof typeof buttonStyles]}`}></div>
@@ -393,7 +391,7 @@ const AppearanceView: React.FC<{
                      {['solid', 'outline', 'ghost'].map((fill) => (
                         <button
                            key={fill}
-                           onClick={() => setConfig({ ...config, buttonFill: fill as any })}
+                           onClick={() => onUpdate({ buttonFill: fill as any })}
                            className={`px-6 py-3 rounded-xl border capitalize text-sm font-medium transition-all ${config.buttonFill === fill
                               ? 'border-primary bg-primary text-background shadow-md'
                               : 'border-border hover:border-primary/50 text-secondary'
@@ -412,7 +410,7 @@ const AppearanceView: React.FC<{
                      {['none', 'soft', 'hard'].map((shadow) => (
                         <button
                            key={shadow}
-                           onClick={() => setConfig({ ...config, buttonShadow: shadow as any })}
+                           onClick={() => onUpdate({ buttonShadow: shadow as any })}
                            className={`px-6 py-3 rounded-xl border capitalize text-sm font-medium transition-all ${config.buttonShadow === shadow
                               ? 'border-primary bg-primary text-background shadow-md'
                               : 'border-border hover:border-primary/50 text-secondary'
@@ -431,21 +429,21 @@ const AppearanceView: React.FC<{
             <div className="bg-surface border border-border rounded-2xl p-6">
                <div className="grid grid-cols-3 gap-4">
                   <button
-                     onClick={() => setConfig({ ...config, font: 'sans' })}
+                     onClick={() => onUpdate({ font: 'sans' })}
                      className={`p-4 border rounded-xl text-center transition-all ${config.font === 'sans' ? 'border-primary bg-primary/5' : 'border-border hover:bg-surfaceHighlight'}`}
                   >
                      <span className="text-2xl font-sans font-bold block mb-2">Aa</span>
                      <span className="text-xs font-medium text-secondary">Sans Serif</span>
                   </button>
                   <button
-                     onClick={() => setConfig({ ...config, font: 'serif' })}
+                     onClick={() => onUpdate({ font: 'serif' })}
                      className={`p-4 border rounded-xl text-center transition-all ${config.font === 'serif' ? 'border-primary bg-primary/5' : 'border-border hover:bg-surfaceHighlight'}`}
                   >
                      <span className="text-2xl font-serif font-bold block mb-2">Aa</span>
                      <span className="text-xs font-medium text-secondary">Serif</span>
                   </button>
                   <button
-                     onClick={() => setConfig({ ...config, font: 'mono' })}
+                     onClick={() => onUpdate({ font: 'mono' })}
                      className={`p-4 border rounded-xl text-center transition-all ${config.font === 'mono' ? 'border-primary bg-primary/5' : 'border-border hover:bg-surfaceHighlight'}`}
                   >
                      <span className="text-2xl font-mono font-bold block mb-2">Aa</span>
@@ -641,40 +639,232 @@ const SettingsView: React.FC = () => {
 const Dashboard: React.FC = () => {
    const [currentView, setCurrentView] = useState<ViewState>('links');
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-   const [links, setLinks] = useState<LinkItem[]>(initialLinks);
+   const [links, setLinks] = useState<LinkItem[]>([]);
+   const [loading, setLoading] = useState(true);
    const { theme, toggleTheme } = useTheme();
    const { signOut, user } = useAuth();
    const navigate = useNavigate();
+
+   // Debounce ref for auto-saving
+   const debounceRef = React.useRef<NodeJS.Timeout>();
+
+   const [profileConfig, setProfileConfig] = useState<ProfileConfig>({
+      username: '',
+      bio: '',
+      avatar: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60',
+      coverImage: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=1600&auto=format&fit=crop&q=60',
+      theme: 'simple',
+      buttonStyle: 'rounded',
+      buttonFill: 'solid',
+      buttonShadow: 'none',
+      font: 'sans'
+   });
+
+   // -- Data Loading --
+   useEffect(() => {
+      if (!user) return;
+
+      const loadData = async () => {
+         setLoading(true);
+         try {
+            const [profile, userLinks, settings] = await Promise.all([
+               fetchUserProfile(user.id),
+               fetchUserLinks(user.id),
+               fetchAppearanceSettings(user.id)
+            ]);
+
+            // 1. Set Profile
+            if (profile) {
+               setProfileConfig(prev => ({
+                  ...prev,
+                  username: profile.username,
+                  bio: profile.bio || prev.bio,
+                  avatar: profile.avatar_url || prev.avatar,
+                  coverImage: profile.cover_image_url || prev.coverImage,
+               }));
+            }
+
+            // 2. Set Appearance
+            if (settings) {
+               setProfileConfig(prev => ({
+                  ...prev,
+                  theme: settings.theme,
+                  buttonStyle: settings.button_style,
+                  buttonFill: settings.button_fill,
+                  buttonShadow: settings.button_shadow,
+                  font: settings.font as any
+               }));
+            }
+
+            // 3. Set Links
+            if (userLinks) {
+               setLinks(userLinks.map(l => ({
+                  id: l.id,
+                  title: l.title,
+                  url: l.url,
+                  active: l.active,
+                  clicks: 0, // Placeholder until Analytics Phase
+                  position: l.position
+               })));
+            }
+         } catch (error) {
+            console.error('Error loading dashboard:', error);
+            toast.error('Failed to load your dashboard data.');
+         } finally {
+            setLoading(false);
+         }
+      };
+
+      loadData();
+   }, [user]);
 
    const handleLogout = async () => {
       await signOut();
       navigate('/login');
    };
 
-   const [profileConfig, setProfileConfig] = useState<ProfileConfig>({
-      username: '@alex_designs',
-      bio: 'Digital Designer & Content Creator based in NYC.',
-      avatar: 'https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?w=200&auto=format&fit=crop&q=60',
-      coverImage: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=900&auto=format&fit=crop&q=60',
-      theme: 'midnight',
-      buttonStyle: 'rounded',
-      buttonFill: 'ghost',
-      buttonShadow: 'none',
-      font: 'sans'
-   });
+   // -- Handlers --
+
+   const handleCreateLink = async () => {
+      if (!user) return;
+      const newPosition = links.length; // Simple append
+      const tempId = `temp-${Date.now()}`;
+
+      // Optimistic Update
+      const optimisticLink: LinkItem = {
+         id: tempId,
+         title: 'New Link',
+         url: 'https://',
+         active: true,
+         clicks: 0,
+         position: newPosition
+      };
+      setLinks([optimisticLink, ...links]); // Add to top
+
+      try {
+         const created = await createLink(user.id, {
+            title: 'New Link',
+            url: 'https://',
+            position: newPosition
+         });
+
+         if (created) {
+            // Replace temp ID with real ID
+            setLinks(currentLinks => currentLinks.map(l =>
+               l.id === tempId ? { ...l, id: created.id, position: created.position } : l
+            ));
+            toast.success('Link created');
+         }
+      } catch (error) {
+         toast.error('Failed to create link');
+         setLinks(links); // Revert
+      }
+   };
+
+   const handleUpdateLink = (id: string, updates: Partial<LinkItem>) => {
+      // 1. Optimistic Update
+      setLinks(currentLinks => currentLinks.map(l =>
+         l.id === id ? { ...l, ...updates } : l
+      ));
+
+      // 2. Debounced API Call
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      debounceRef.current = setTimeout(async () => {
+         try {
+            await updateLinkInDb(id, updates);
+            // Silent success for auto-save
+         } catch (error) {
+            toast.error('Failed to save changes');
+         }
+      }, 500);
+   };
+
+   const handleDeleteLink = async (id: string) => {
+      const confirmed = window.confirm('Are you sure you want to delete this link?');
+      if (!confirmed) return;
+
+      const originalLinks = [...links];
+      setLinks(links.filter(l => l.id !== id));
+
+      try {
+         await deleteLinkFromDb(id);
+         toast.success('Link deleted');
+      } catch (error) {
+         toast.error('Failed to delete link');
+         setLinks(originalLinks);
+      }
+   };
+
+   const handleUpdateConfig = (updates: Partial<ProfileConfig>) => {
+      if (!user) return;
+
+      // 1. Optimistic Update
+      setProfileConfig(prev => ({ ...prev, ...updates }));
+
+      // 2. Debounced API Call
+      // We need to separate Profile fields vs Appearance fields
+      const profileFields = ['username', 'bio', 'avatar', 'coverImage'];
+      const appearanceFields = ['theme', 'buttonStyle', 'buttonFill', 'buttonShadow', 'font'];
+
+      const profileUpdates: Partial<Profile> = {};
+      const appearanceUpdates: Partial<AppearanceSettings> = {};
+
+      Object.entries(updates).forEach(([key, val]) => {
+         if (profileFields.includes(key)) {
+            if (key === 'coverImage') profileUpdates.cover_image_url = val as string;
+            else if (key === 'avatar') profileUpdates.avatar_url = val as string;
+            else (profileUpdates as any)[key] = val;
+         }
+         else if (appearanceFields.includes(key)) {
+            if (key === 'buttonStyle') appearanceUpdates.button_style = val as any;
+            else if (key === 'buttonFill') appearanceUpdates.button_fill = val as any;
+            else if (key === 'buttonShadow') appearanceUpdates.button_shadow = val as any;
+            else (appearanceUpdates as any)[key] = val;
+         }
+      });
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      debounceRef.current = setTimeout(async () => {
+         try {
+            if (Object.keys(profileUpdates).length > 0) {
+               await updateProfile(user.id, profileUpdates);
+            }
+            if (Object.keys(appearanceUpdates).length > 0) {
+               await updateAppearance(user.id, appearanceUpdates);
+            }
+         } catch (error) {
+            toast.error('Failed to save settings');
+         }
+      }, 1000);
+   };
 
    const renderView = () => {
       switch (currentView) {
          case 'links':
-            return <LinksView links={links} setLinks={setLinks} />;
+            return <LinksView
+               links={links}
+               onAdd={handleCreateLink}
+               onDelete={handleDeleteLink}
+               onUpdate={handleUpdateLink}
+            />;
          case 'appearance':
-            return <AppearanceView config={profileConfig} setConfig={setProfileConfig} />;
+            return <AppearanceView
+               config={profileConfig}
+               onUpdate={handleUpdateConfig}
+            />;
          case 'analytics':
             return <AnalyticsView />;
          case 'settings':
             return <SettingsView />;
          default:
-            return <LinksView links={links} setLinks={setLinks} />;
+            return <LinksView
+               links={links}
+               onAdd={handleCreateLink}
+               onDelete={handleDeleteLink}
+               onUpdate={handleUpdateLink}
+            />;
       }
    };
 
