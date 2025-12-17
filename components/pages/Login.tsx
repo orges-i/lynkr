@@ -33,40 +33,40 @@ const Login: React.FC = () => {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent blur-3xl -z-10 rounded-full" />
 
       <Reveal width="100%" className="max-w-md w-full">
-        <div className="bg-surface border border-white/10 rounded-3xl p-8 shadow-2xl backdrop-blur-sm">
+        <div className="bg-white dark:bg-surface border border-zinc-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl backdrop-blur-sm transition-colors duration-300">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
-            <p className="text-zinc-400">Enter your credentials to access your account</p>
+            <h1 className="text-3xl font-bold mb-2 text-zinc-900 dark:text-white">Welcome back</h1>
+            <p className="text-zinc-500 dark:text-zinc-400">Enter your credentials to access your account</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
 
           <form className="space-y-4" onSubmit={handleLogin}>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Email address</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Email address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 transition-all"
+                className="w-full bg-zinc-50 dark:bg-background border border-zinc-200 dark:border-white/10 rounded-lg px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-white/30 focus:ring-1 focus:ring-indigo-500 dark:focus:ring-white/30 transition-all placeholder:text-zinc-400"
                 placeholder="you@example.com"
                 required
               />
             </div>
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-zinc-300">Password</label>
-                <a href="#" className="text-xs text-zinc-400 hover:text-white">Forgot password?</a>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Password</label>
+                <a href="#" className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-white transition-colors">Forgot password?</a>
               </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 transition-all"
+                className="w-full bg-zinc-50 dark:bg-background border border-zinc-200 dark:border-white/10 rounded-lg px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-white/30 focus:ring-1 focus:ring-indigo-500 dark:focus:ring-white/30 transition-all placeholder:text-zinc-400"
                 placeholder="••••••••"
                 required
               />
@@ -96,7 +96,7 @@ const Login: React.FC = () => {
           </div>
 
           <p className="text-center mt-8 text-sm text-zinc-500">
-            Don't have an account? <Link to="/signup" className="text-indigo-600 dark:text-white hover:underline">Sign up</Link>
+            Don't have an account? <Link to="/signup" className="text-indigo-600 dark:text-white hover:underline transition-colors">Sign up</Link>
           </p>
         </div>
       </Reveal>

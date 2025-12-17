@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
@@ -50,8 +50,8 @@ const AppContent: React.FC = () => {
         {/* Dashboard Route - No Navbar/Footer (Protected) */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
-        {/* SuperAdmin Route - No Navbar/Footer (Protected) */}
-        <Route path="/superadmin" element={<ProtectedRoute><SuperAdmin /></ProtectedRoute>} />
+        {/* SuperAdmin Route - Internal Auth Handling */}
+        <Route path="/superadmin" element={<SuperAdmin />} />
 
         {/* Public Routes - With Navbar/Footer */}
         <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />

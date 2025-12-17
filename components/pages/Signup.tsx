@@ -48,8 +48,8 @@ const Signup: React.FC = () => {
 
       {/* Left Column - Benefits */}
       <Reveal className="flex-1 hidden md:block">
-        <h1 className="text-4xl lg:text-5xl font-bold mb-6">Join the future of <br />digital identity.</h1>
-        <p className="text-zinc-400 text-lg mb-8 max-w-lg">Create a stunning bio page in minutes. No credit card required. Free forever plan available.</p>
+        <h1 className="text-4xl lg:text-5xl font-bold mb-6 text-zinc-900 dark:text-white">Join the future of <br />digital identity.</h1>
+        <p className="text-zinc-500 dark:text-zinc-400 text-lg mb-8 max-w-lg">Create a stunning bio page in minutes. No credit card required. Free forever plan available.</p>
 
         <div className="space-y-4">
           {[
@@ -62,7 +62,7 @@ const Signup: React.FC = () => {
               <div className="w-6 h-6 rounded-full bg-indigo-500/10 dark:bg-white/10 flex items-center justify-center">
                 <Check className="w-3 h-3 text-indigo-600 dark:text-white" />
               </div>
-              <span className="text-zinc-600 dark:text-zinc-300">{item}</span>
+              <span className="text-zinc-700 dark:text-zinc-300">{item}</span>
             </div>
           ))}
         </div>
@@ -77,21 +77,21 @@ const Signup: React.FC = () => {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
 
           <form className="space-y-4" onSubmit={handleSignup}>
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Username</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Username</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">lynkr.com/</span>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                  className="w-full bg-background border border-white/10 rounded-lg pl-28 pr-4 py-3 text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 transition-all"
+                  className="w-full bg-zinc-50 dark:bg-background border border-zinc-200 dark:border-white/10 rounded-lg pl-28 pr-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-white/30 focus:ring-1 focus:ring-indigo-500 dark:focus:ring-white/30 transition-all placeholder:text-zinc-400"
                   placeholder="yourname"
                   required
                 />
@@ -99,24 +99,24 @@ const Signup: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Email address</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Email address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 transition-all"
+                className="w-full bg-zinc-50 dark:bg-background border border-zinc-200 dark:border-white/10 rounded-lg px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-white/30 focus:ring-1 focus:ring-indigo-500 dark:focus:ring-white/30 transition-all placeholder:text-zinc-400"
                 placeholder="you@example.com"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Password</label>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/30 transition-all"
+                className="w-full bg-zinc-50 dark:bg-background border border-zinc-200 dark:border-white/10 rounded-lg px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-white/30 focus:ring-1 focus:ring-indigo-500 dark:focus:ring-white/30 transition-all placeholder:text-zinc-400"
                 placeholder="••••••••"
                 required
                 minLength={6}
@@ -134,7 +134,7 @@ const Signup: React.FC = () => {
               <div className="w-full border-t border-zinc-200 dark:border-white/10"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-surface text-zinc-500">Or continue with</span>
+              <span className="px-2 bg-white dark:bg-surface text-zinc-500 dark:text-zinc-500">Or continue with</span>
             </div>
           </div>
 
@@ -148,7 +148,7 @@ const Signup: React.FC = () => {
           </div>
 
           <p className="text-center mt-8 text-sm text-zinc-500">
-            Already have an account? <Link to="/login" className="text-indigo-600 dark:text-white hover:underline">Sign in</Link>
+            Already have an account? <Link to="/login" className="text-indigo-600 dark:text-white hover:underline transition-colors">Sign in</Link>
           </p>
         </div>
       </Reveal>

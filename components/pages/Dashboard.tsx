@@ -91,8 +91,8 @@ const SidebarItem: React.FC<{
    <button
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${active
-            ? 'bg-primary text-background font-medium shadow-md'
-            : 'text-secondary hover:text-primary hover:bg-surfaceHighlight'
+         ? 'bg-primary text-background font-medium shadow-md'
+         : 'text-secondary hover:text-primary hover:bg-surfaceHighlight'
          }`}
    >
       <Icon className={`w-5 h-5 ${active ? 'text-background' : 'text-secondary group-hover:text-primary'}`} />
@@ -395,8 +395,8 @@ const AppearanceView: React.FC<{
                            key={fill}
                            onClick={() => setConfig({ ...config, buttonFill: fill as any })}
                            className={`px-6 py-3 rounded-xl border capitalize text-sm font-medium transition-all ${config.buttonFill === fill
-                                 ? 'border-primary bg-primary text-background shadow-md'
-                                 : 'border-border hover:border-primary/50 text-secondary'
+                              ? 'border-primary bg-primary text-background shadow-md'
+                              : 'border-border hover:border-primary/50 text-secondary'
                               }`}
                         >
                            {fill}
@@ -414,8 +414,8 @@ const AppearanceView: React.FC<{
                            key={shadow}
                            onClick={() => setConfig({ ...config, buttonShadow: shadow as any })}
                            className={`px-6 py-3 rounded-xl border capitalize text-sm font-medium transition-all ${config.buttonShadow === shadow
-                                 ? 'border-primary bg-primary text-background shadow-md'
-                                 : 'border-border hover:border-primary/50 text-secondary'
+                              ? 'border-primary bg-primary text-background shadow-md'
+                              : 'border-border hover:border-primary/50 text-secondary'
                               }`}
                         >
                            {shadow}
@@ -713,7 +713,7 @@ const Dashboard: React.FC = () => {
                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">Alex Rivera</p>
                      <p className="text-xs text-secondary truncate">Free Plan</p>
                   </div>
-                  <LogOut className="w-4 h-4 text-secondary group-hover:text-red-500" />
+                  <LogOut className="w-4 h-4 text-red-500" />
                </div>
             </div>
          </aside>
@@ -743,12 +743,13 @@ const Dashboard: React.FC = () => {
                            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                         </button>
                      </div>
-                     <div className="flex items-center gap-3 px-2">
+                     <div onClick={handleLogout} className="flex items-center gap-3 px-2 cursor-pointer group hover:bg-surfaceHighlight/50 p-2 rounded-xl transition-colors">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">AR</div>
                         <div className="flex-1 overflow-hidden">
                            <p className="text-sm font-medium truncate">Alex Rivera</p>
                            <p className="text-xs text-secondary truncate">Free Plan</p>
                         </div>
+                        <LogOut className="w-4 h-4 text-red-500" />
                      </div>
                   </div>
                </div>

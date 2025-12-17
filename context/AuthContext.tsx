@@ -35,9 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
         });
 
         return () => subscription.unsubscribe();
@@ -54,8 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     },
                 },
             });
-
-            if (error) return { error };
 
             if (error) return { error };
 
