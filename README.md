@@ -1,77 +1,91 @@
-LYNKR
+# LYNKR
 
-LYNKR is a modular link-in-bio platform built with a component-driven architecture, focusing on customization, visual fidelity, and extensibility. The project is designed as a configurable system rather than a static link list, enabling the composition of a single page from interactive and media-rich modules.
+LYNKR is a modular link-in-bio platform built with a component-driven architecture. It focuses on customization, visual fidelity, and extensibility. The project is designed as a configurable system rather than a static link list, allowing a single page to be composed from interactive and media-rich modules.
 
 The application emphasizes modern frontend patterns, real-time editing, and advanced visual effects, supported by a scalable backend for authentication, data persistence, and analytics.
 
-Features
-Visual System
+## Architecture Overview
 
-Custom 3D background ("Antigravity Shard") built with React Three Fiber
+* Component-first, modular design
+* Strong separation between presentation, editor logic, and data layer
+* Extensible module system for adding new content blocks without core refactors
+* Real-time state synchronization between editor and rendered view
 
-Shader-based effects and particle systems
+## Features
 
-Glassmorphism UI and smooth view transitions
+### Visual System
 
-Fully responsive, mobile-first layout
+* Custom 3D background ("Antigravity Shard") implemented with React Three Fiber
+* Shader-based visual effects and particle systems
+* Glassmorphism-based UI
+* Smooth view and layout transitions
+* Fully responsive, mobile-first layout
 
-Modular Content
+### Modular Content System
 
-Bento-style widget layout
+* Bento-style widget layout
+* Support for rich embeds such as:
 
-Support for rich embeds (Spotify, newsletter forms, live status indicators, interactive blocks)
+  * Spotify
+  * Newsletter and form embeds
+  * Live status indicators
+  * Interactive content blocks
+* Component-based module registry for extensibility
 
-Extensible, component-based module system
+### Editor
 
-Editor
+* Real-time visual editor
+* Drag-and-drop layout management
+* Theme, typography, and branding configuration
+* Immediate preview of layout and style changes
 
-Real-time visual editor
+### Analytics
 
-Drag-and-drop layout management
+* Visitor tracking
+* Click-through metrics
+* Traffic source analysis
 
-Theme, font, and branding configuration
+## Tech Stack
 
-Analytics
+### Frontend
 
-Visitor tracking
+* React 18
+* TypeScript
+* Tailwind CSS
+* Framer Motion
+* Lucide React
 
-Click-through metrics
+### 3D and Graphics
 
-Traffic source analysis
+* Three.js
+* React Three Fiber
 
-Tech Stack
-Frontend
+### Prototyping
 
-React 18
+* Google Studio (UI and interaction prototyping)
 
-TypeScript
+### Backend and Authentication
 
-Tailwind CSS
+* Supabase
+* PostgreSQL
+* Authentication and session management
+* Storage and backend services
 
-Framer Motion
+### Development Environment
 
-Lucide React
+* AntiGravity IDE (development workflow and tooling)
 
-Prototyping
+## Project Goals
 
-Google Studio (UI and interaction prototyping)
+* Provide a highly customizable link-in-bio system
+* Prioritize visual quality and interactive design
+* Maintain a scalable and maintainable codebase
+* Enable rapid extension through modular components
 
-Graphics
+## Status
 
-Three.js
+This project is under active development. APIs, schemas, and internal modules may evolve as the system matures.
 
-React Three Fiber
+## License
 
-Development Environment
-
-AntiGravity IDE (development workflow and tooling)
-
-Backend & Auth
-
-Supabase
-
-PostgreSQL database
-
-Authentication
-
-Storage and backend services
+License information to be defined.
