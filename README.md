@@ -1,20 +1,77 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+LYNKR
 
-# Run and deploy your AI Studio app
+LYNKR is a modular link-in-bio platform built with a component-driven architecture, focusing on customization, visual fidelity, and extensibility. The project is designed as a configurable system rather than a static link list, enabling the composition of a single page from interactive and media-rich modules.
 
-This contains everything you need to run your app locally.
+The application emphasizes modern frontend patterns, real-time editing, and advanced visual effects, supported by a scalable backend for authentication, data persistence, and analytics.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1uUvkkShc-0YFvHtn4m7vS6-Jx_CoDZvG
+Features
+Visual System
 
-## Run Locally
+Custom 3D background ("Antigravity Shard") built with React Three Fiber
 
-**Prerequisites:**  Node.js
+Shader-based effects and particle systems
 
+Glassmorphism UI and smooth view transitions
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Fully responsive, mobile-first layout
+
+Modular Content
+
+Bento-style widget layout
+
+Support for rich embeds (Spotify, newsletter forms, live status indicators, interactive blocks)
+
+Extensible, component-based module system
+
+Editor
+
+Real-time visual editor
+
+Drag-and-drop layout management
+
+Theme, font, and branding configuration
+
+Analytics
+
+Visitor tracking
+
+Click-through metrics
+
+Traffic source analysis
+
+Tech Stack
+Frontend
+
+React 18
+
+TypeScript
+
+Tailwind CSS
+
+Framer Motion
+
+Lucide React
+
+Prototyping
+
+Google Studio (UI and interaction prototyping)
+
+Graphics
+
+Three.js
+
+React Three Fiber
+
+Development Environment
+
+AntiGravity IDE (development workflow and tooling)
+
+Backend & Auth
+
+Supabase
+
+PostgreSQL database
+
+Authentication
+
+Storage and backend services
