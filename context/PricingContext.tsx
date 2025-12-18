@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { fetchPricingPlans, upsertPricingPlan, PricingPlan } from '../lib/supabaseHelpers';
 
 export interface Plan {
+  id?: string;
   name: string;
   price: string;
   period: string;
@@ -12,7 +14,8 @@ export interface Plan {
 
 interface PricingContextType {
   plans: Plan[];
-  updatePlan: (index: number, updatedPlan: Plan) => void;
+  updatePlan: (index: number, updatedPlan: Plan) => Promise<void>;
+  refreshPlans: () => Promise<void>;
 }
 
 const PricingContext = createContext<PricingContextType | undefined>(undefined);
@@ -50,14 +53,42 @@ const initialPlans: Plan[] = [
 export const PricingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [plans, setPlans] = useState<Plan[]>(initialPlans);
 
-  const updatePlan = (index: number, updatedPlan: Plan) => {
-    const newPlans = [...plans];
-    newPlans[index] = updatedPlan;
-    setPlans(newPlans);
+  const refreshPlans = useCallback(async () => {
+    const remotePlans = await fetchPricingPlans();
+    if (remotePlans.length > 0) {
+      setPlans(remotePlans);
+    } else {
+      setPlans(initialPlans);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshPlans();
+  }, []);
+
+  const updatePlan = async (index: number, updatedPlan: Plan) => {
+    const previousPlans = [...plans];
+    const existingId = previousPlans[index]?.id;
+
+    // Optimistic update
+    setPlans((prev) => {
+      const next = [...prev];
+      next[index] = updatedPlan;
+      return next;
+    });
+
+    try {
+      await upsertPricingPlan({ ...updatedPlan, id: existingId });
+      await refreshPlans();
+    } catch (e) {
+      // Revert to previous state on failure
+      setPlans(previousPlans);
+      throw e;
+    }
   };
 
   return (
-    <PricingContext.Provider value={{ plans, updatePlan }}>
+    <PricingContext.Provider value={{ plans, updatePlan, refreshPlans }}>
       {children}
     </PricingContext.Provider>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
    Shield,
    Users,
@@ -24,7 +24,6 @@ import {
    Zap,
    Banknote,
    Fingerprint,
-   HardDrive,
    Sparkles,
    ChevronRight,
    AlertTriangle,
@@ -38,8 +37,11 @@ import {
    X,
    FileJson,
    FileSpreadsheet,
-   File
+   File,
+   Link2,
+   Menu
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 import { Button } from '../ui/Button';
 import { usePricing, Plan } from '../../context/PricingContext';
 import { Link, useNavigate } from 'react-router-dom';
@@ -47,6 +49,18 @@ import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
+import {
+   fetchProfilesForAdmin,
+   fetchPageViewsCount,
+   fetchRecentLinks,
+   fetchRecentProfiles,
+   fetchTickets,
+   createTicket,
+   updateTicket,
+   Ticket,
+   fetchLinksForAdmin
+} from '../../lib/supabaseHelpers';
 
 // -- Types --
 interface AdminUser {
@@ -70,6 +84,41 @@ interface BugTicket {
 
 type TabType = 'users' | 'pricing' | 'analytics' | 'settings' | 'reports' | 'bugs';
 
+type ActivityKind = 'profile' | 'link';
+
+interface ActivityItem {
+   id: string;
+   title: string;
+   subtitle: string;
+   time: string;
+   kind: ActivityKind;
+}
+
+interface AdminMetrics {
+   revenue: string;
+   activeSubs: number;
+   totalUsers: number;
+   pageViews: number;
+}
+
+const formatRelativeTime = (isoDate: string) => {
+   const date = new Date(isoDate);
+   const now = new Date();
+   const diff = Math.max(0, now.getTime() - date.getTime());
+
+   const minutes = Math.floor(diff / (1000 * 60));
+   if (minutes < 1) return 'just now';
+   if (minutes < 60) return `${minutes}m ago`;
+
+   const hours = Math.floor(minutes / 60);
+   if (hours < 24) return `${hours}h ago`;
+
+   const days = Math.floor(hours / 24);
+   if (days < 7) return `${days}d ago`;
+
+   return date.toLocaleDateString();
+};
+
 // -- Mock Data --
 const mockUsers: AdminUser[] = [
    { id: '1', name: 'Alex Rivera', email: 'alex@example.com', avatar: 'https://i.pravatar.cc/150?u=1', plan: 'Pro', status: 'Active', joined: 'Oct 12, 2023' },
@@ -87,7 +136,8 @@ const mockTicketsData: BugTicket[] = [
 
 // -- Sub-Components --
 
-const AnalyticsDashboard: React.FC = () => {
+const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityItem[]; loading: boolean; onExport?: () => void; }> = ({ metrics, activity, loading, onExport }) => {
+   const safeMetrics: AdminMetrics = metrics || { revenue: '$0', activeSubs: 0, totalUsers: 0, pageViews: 0 };
    return (
       <div className="max-w-7xl mx-auto animate-fade-in pb-12">
          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
@@ -98,7 +148,7 @@ const AnalyticsDashboard: React.FC = () => {
                <h2 className="text-3xl md:text-4xl font-bold mb-2">Platform Overview</h2>
                <p className="text-secondary">Real-time insights into platform performance.</p>
             </div>
-            <Button variant="outline" size="sm" className="hidden sm:flex border-dashed">
+            <Button variant="outline" size="sm" className="hidden sm:flex border-dashed" onClick={onExport}>
                <Download className="w-4 h-4 mr-2" /> Export Report
             </Button>
          </div>
@@ -107,8 +157,8 @@ const AnalyticsDashboard: React.FC = () => {
             {[
                {
                   label: 'Total Revenue',
-                  value: '$45,231',
-                  change: '+20.1%',
+                  value: loading ? '—' : safeMetrics.revenue,
+                  change: '+0%',
                   icon: Banknote,
                   gradient: 'from-emerald-500/20 to-green-600/20',
                   textCol: 'text-emerald-500',
@@ -116,8 +166,8 @@ const AnalyticsDashboard: React.FC = () => {
                },
                {
                   label: 'Active Subs',
-                  value: '2,350',
-                  change: '+15.2%',
+                  value: loading ? '—' : safeMetrics.activeSubs.toLocaleString(),
+                  change: '+0%',
                   icon: Zap,
                   gradient: 'from-amber-500/20 to-orange-600/20',
                   textCol: 'text-amber-500',
@@ -125,8 +175,8 @@ const AnalyticsDashboard: React.FC = () => {
                },
                {
                   label: 'Total Users',
-                  value: '12,450',
-                  change: '+8.4%',
+                  value: loading ? '—' : safeMetrics.totalUsers.toLocaleString(),
+                  change: '+0%',
                   icon: Users,
                   gradient: 'from-blue-500/20 to-indigo-600/20',
                   textCol: 'text-blue-500',
@@ -134,8 +184,8 @@ const AnalyticsDashboard: React.FC = () => {
                },
                {
                   label: 'Page Views',
-                  value: '1.2M',
-                  change: '+42.3%',
+                  value: loading ? '—' : safeMetrics.pageViews.toLocaleString(),
+                  change: '+0%',
                   icon: Activity,
                   gradient: 'from-purple-500/20 to-pink-600/20',
                   textCol: 'text-purple-500',
@@ -154,7 +204,11 @@ const AnalyticsDashboard: React.FC = () => {
                      </span>
                   </div>
                   <div className="relative">
-                     <h3 className="text-3xl font-bold mb-1 tracking-tight">{stat.value}</h3>
+                     {loading ? (
+                        <div className="w-24 h-6 rounded-md bg-white/10 animate-pulse mb-2" />
+                     ) : (
+                        <h3 className="text-3xl font-bold mb-1 tracking-tight">{stat.value}</h3>
+                     )}
                      <p className="text-sm text-secondary font-medium">{stat.label}</p>
                   </div>
                </div>
@@ -214,24 +268,27 @@ const AnalyticsDashboard: React.FC = () => {
             <div className="bg-surface border border-border rounded-3xl p-8 shadow-sm flex flex-col relative overflow-hidden">
                <h3 className="text-xl font-bold mb-6 relative z-10">Recent Activity</h3>
                <div className="space-y-6 overflow-y-auto flex-1 pr-2 relative z-10">
-                  {[
-                     { user: 'Sarah Connor', action: 'Upgraded to Agency', time: '2m ago', icon: Gem, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-                     { user: 'John Doe', action: 'Created new account', time: '15m ago', icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                     { user: 'Emily Chen', action: 'Downgraded plan', time: '1h ago', icon: TrendingUp, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-                     { user: 'Mike Ross', action: 'Reported an issue', time: '3h ago', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10' },
-                     { user: 'Alex Rivera', action: 'Logged in', time: '5h ago', icon: Lock, color: 'text-green-500', bg: 'bg-green-500/10' },
-                  ].map((item, i) => (
-                     <div key={i} className="flex items-start gap-4 group">
-                        <div className={`w-10 h-10 rounded-full ${item.bg} flex items-center justify-center shrink-0 border border-transparent group-hover:border-${item.color.split('-')[1]}-500/30 transition-colors`}>
-                           <item.icon className={`w-4 h-4 ${item.color}`} />
+                  {activity.length === 0 && !loading && (
+                     <p className="text-secondary text-sm">No recent activity yet.</p>
+                  )}
+                  {activity.map((item) => {
+                     const isProfile = item.kind === 'profile';
+                     const color = isProfile ? 'text-blue-500' : 'text-purple-500';
+                     const bg = isProfile ? 'bg-blue-500/10' : 'bg-purple-500/10';
+                     const IconComp = isProfile ? Users : Link2;
+                     return (
+                        <div key={item.id} className="flex items-start gap-4 group">
+                           <div className={`w-10 h-10 rounded-full ${bg} flex items-center justify-center shrink-0 border border-transparent transition-colors`}>
+                              <IconComp className={`w-4 h-4 ${color}`} />
+                           </div>
+                           <div>
+                              <p className="text-sm font-semibold text-primary">{item.title}</p>
+                              <p className="text-xs text-secondary mt-0.5">{item.subtitle}</p>
+                              <p className="text-[10px] text-secondary/50 mt-1 font-mono">{formatRelativeTime(item.time)}</p>
+                           </div>
                         </div>
-                        <div>
-                           <p className="text-sm font-semibold text-primary">{item.user}</p>
-                           <p className="text-xs text-secondary mt-0.5">{item.action}</p>
-                           <p className="text-[10px] text-secondary/50 mt-1 font-mono">{item.time}</p>
-                        </div>
-                     </div>
-                  ))}
+                     );
+                  })}
                </div>
             </div>
          </div>
@@ -239,17 +296,21 @@ const AnalyticsDashboard: React.FC = () => {
    );
 };
 
-const UserManagement: React.FC = () => {
-   const [users, setUsers] = useState<AdminUser[]>(mockUsers);
+const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ users, loading }) => {
+   const [localUsers, setLocalUsers] = useState<AdminUser[]>(users);
    const [searchTerm, setSearchTerm] = useState('');
 
+   useEffect(() => {
+      setLocalUsers(users);
+   }, [users]);
+
    const toggleStatus = (id: string) => {
-      setUsers(users.map(u => u.id === id ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' } : u));
+      setLocalUsers(prev => prev.map(u => u.id === id ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' } : u));
    };
 
    const deleteUser = (id: string) => {
       if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-         setUsers(users.filter(u => u.id !== id));
+         setLocalUsers(prev => prev.filter(u => u.id !== id));
       }
    };
 
@@ -270,7 +331,7 @@ const UserManagement: React.FC = () => {
       document.body.removeChild(link);
    };
 
-   const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()));
+   const filteredUsers = localUsers.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
    return (
       <div className="max-w-7xl mx-auto animate-fade-in pb-12">
@@ -295,6 +356,12 @@ const UserManagement: React.FC = () => {
                </Button>
             </div>
          </div>
+
+         {loading && (
+            <div className="bg-surface border border-border rounded-3xl p-6 mb-6 text-secondary">
+               Loading users...
+            </div>
+         )}
 
          <div className="bg-surface border border-border rounded-3xl overflow-hidden shadow-sm">
             {/* Desktop Table */}
@@ -418,10 +485,15 @@ const UserManagement: React.FC = () => {
    );
 };
 
-const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => void }> = ({ plan, onSave }) => {
-   // ... (No Changes)
+const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => Promise<void> }> = ({ plan, onSave }) => {
    const [editedPlan, setEditedPlan] = useState<Plan>(plan);
    const [isDirty, setIsDirty] = useState(false);
+   const [isSaving, setIsSaving] = useState(false);
+
+   useEffect(() => {
+      setEditedPlan(plan);
+      setIsDirty(false);
+   }, [plan]);
 
    const handleChange = (field: keyof Plan, value: any) => {
       setEditedPlan({ ...editedPlan, [field]: value });
@@ -435,9 +507,28 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => void }> = ({ pl
       setIsDirty(true);
    };
 
-   const handleSave = () => {
-      onSave(editedPlan);
-      setIsDirty(false);
+   const handleAddFeature = () => {
+      setEditedPlan({ ...editedPlan, features: [...editedPlan.features, ''] });
+      setIsDirty(true);
+   };
+
+   const handleRemoveFeature = (index: number) => {
+      const newFeatures = editedPlan.features.filter((_, i) => i !== index);
+      setEditedPlan({ ...editedPlan, features: newFeatures });
+      setIsDirty(true);
+   };
+
+   const handleSave = async () => {
+      try {
+         setIsSaving(true);
+         await onSave(editedPlan);
+         setIsDirty(false);
+         toast.success('Plan saved');
+      } catch (e: any) {
+         toast.error(e?.message || 'Failed to save plan');
+      } finally {
+         setIsSaving(false);
+      }
    };
 
    return (
@@ -491,9 +582,9 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => void }> = ({ pl
                />
             </div>
 
-            <div>
-               <label className="text-xs font-bold text-secondary uppercase mb-3 block">Features</label>
-               <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+              <div>
+                <label className="text-xs font-bold text-secondary uppercase mb-3 block">Features</label>
+                <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
                   {editedPlan.features.map((feat, i) => (
                      <div key={i} className="flex gap-3 items-center group">
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 group-hover:scale-150 transition-transform"></div>
@@ -503,10 +594,25 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => void }> = ({ pl
                            onChange={e => handleFeatureChange(i, e.target.value)}
                            className="w-full bg-transparent border-b border-border border-dashed text-sm pb-1 focus:border-indigo-500 focus:border-solid outline-none transition-all"
                         />
+                        <button
+                           type="button"
+                           onClick={() => handleRemoveFeature(i)}
+                           className="text-secondary hover:text-red-500 transition-colors"
+                           title="Remove feature"
+                        >
+                           <X className="w-4 h-4" />
+                        </button>
                      </div>
                   ))}
-               </div>
-            </div>
+                  <button
+                     type="button"
+                     onClick={handleAddFeature}
+                     className="text-xs font-semibold text-indigo-500 hover:text-indigo-400 transition-colors"
+                  >
+                     + Add Feature
+                  </button>
+                </div>
+              </div>
          </div>
 
          <div className="pt-8 mt-8 border-t border-border">
@@ -514,9 +620,9 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => void }> = ({ pl
                className="w-full gap-2 py-6 text-base"
                variant={isDirty ? 'primary' : 'secondary'}
                onClick={handleSave}
-               disabled={!isDirty}
+               disabled={!isDirty || isSaving}
             >
-               <Save className="w-4 h-4" /> {isDirty ? 'Save Changes' : 'Saved'}
+               <Save className="w-4 h-4" /> {isSaving ? 'Saving...' : isDirty ? 'Save Changes' : 'Saved'}
             </Button>
          </div>
       </div>
@@ -525,7 +631,11 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => void }> = ({ pl
 
 const PricingManagement: React.FC = () => {
    // ... (No Changes)
-   const { plans, updatePlan } = usePricing();
+   const { plans, updatePlan, refreshPlans } = usePricing();
+
+   useEffect(() => {
+      refreshPlans();
+   }, [refreshPlans]);
 
    return (
       <div className="max-w-7xl mx-auto animate-fade-in pb-12">
@@ -536,7 +646,7 @@ const PricingManagement: React.FC = () => {
 
          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
             {plans.map((plan, index) => (
-               <PricingEditor key={index} plan={plan} onSave={(updated) => updatePlan(index, updated)} />
+               <PricingEditor key={plan.id || index} plan={plan} onSave={(updated) => updatePlan(index, updated)} />
             ))}
          </div>
       </div>
@@ -544,9 +654,37 @@ const PricingManagement: React.FC = () => {
 };
 
 const AdminSettings: React.FC = () => {
-   // ... (No Changes)
-   const [maintenanceMode, setMaintenanceMode] = useState(false);
-   const [registrations, setRegistrations] = useState(true);
+   const { maintenanceMode, registrationsEnabled, saveSettings } = useSettings();
+   const [maintenance, setMaintenance] = useState(maintenanceMode);
+   const [registrations, setRegistrations] = useState(registrationsEnabled);
+
+   useEffect(() => {
+      setMaintenance(maintenanceMode);
+   }, [maintenanceMode]);
+
+   useEffect(() => {
+      setRegistrations(registrationsEnabled);
+   }, [registrationsEnabled]);
+
+   const toggleMaintenance = async () => {
+      const next = !maintenance;
+      setMaintenance(next);
+      const ok = await saveSettings({ maintenance_mode: next });
+      if (!ok) {
+         toast.error('Failed to update maintenance mode');
+         setMaintenance(!next);
+      }
+   };
+
+   const toggleRegistrations = async () => {
+      const next = !registrations;
+      setRegistrations(next);
+      const ok = await saveSettings({ registrations_enabled: next });
+      if (!ok) {
+         toast.error('Failed to update registrations');
+         setRegistrations(!next);
+      }
+   };
 
    return (
       <div className="max-w-5xl mx-auto animate-fade-in pb-12">
@@ -563,168 +701,217 @@ const AdminSettings: React.FC = () => {
                </h3>
                <div className="grid md:grid-cols-2 gap-8">
                   <div className="flex items-center justify-between p-4 rounded-2xl border border-border bg-background/50">
-                     <div className="pr-4">
-                        <p className="font-bold mb-1">Maintenance Mode</p>
-                        <p className="text-xs text-secondary leading-relaxed">Disable access for all users except admins. Useful for updates.</p>
-                     </div>
-                     <button
-                        onClick={() => setMaintenanceMode(!maintenanceMode)}
-                        className={`w-14 h-8 rounded-full transition-all duration-300 relative shrink-0 ${maintenanceMode ? 'bg-indigo-500 shadow-inner' : 'bg-surfaceHighlight border border-border'}`}
-                     >
-                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-300 ${maintenanceMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                     </button>
-                  </div>
+                    <div className="pr-4">
+                       <p className="font-bold mb-1">Maintenance Mode</p>
+                       <p className="text-xs text-secondary leading-relaxed">Disable access for all users except admins. Useful for updates.</p>
+                    </div>
+                    <button
+                        onClick={toggleMaintenance}
+                       className={`w-14 h-8 rounded-full transition-all duration-300 relative shrink-0 ${maintenanceMode ? 'bg-indigo-500 shadow-inner' : 'bg-surfaceHighlight border border-border'}`}
+                    >
+                       <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-300 ${maintenanceMode ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                    </button>
+                 </div>
                   <div className="flex items-center justify-between p-4 rounded-2xl border border-border bg-background/50">
-                     <div className="pr-4">
+                    <div className="pr-4">
                         <p className="font-bold mb-1">New Registrations</p>
                         <p className="text-xs text-secondary leading-relaxed">Allow new users to create accounts on the platform.</p>
-                     </div>
-                     <button
-                        onClick={() => setRegistrations(!registrations)}
-                        className={`w-14 h-8 rounded-full transition-all duration-300 relative shrink-0 ${registrations ? 'bg-green-500 shadow-inner' : 'bg-surfaceHighlight border border-border'}`}
-                     >
-                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-300 ${registrations ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                     </button>
-                  </div>
+                    </div>
+                    <button
+                        onClick={toggleRegistrations}
+                       className={`w-14 h-8 rounded-full transition-all duration-300 relative shrink-0 ${registrations ? 'bg-green-500 shadow-inner' : 'bg-surfaceHighlight border border-border'}`}
+                    >
+                       <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-300 ${registrations ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                    </button>
+                 </div>
                </div>
             </div>
 
-            <div className="bg-surface border border-border rounded-3xl p-8">
-               <h3 className="text-lg font-bold mb-6 flex items-center gap-2.5">
-                  <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500"><Fingerprint className="w-5 h-5" /></div>
-                  Security
-               </h3>
-               <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-background/50 border border-border rounded-2xl hover:border-purple-500/30 transition-colors cursor-pointer group">
-                     <div className="flex items-center gap-4">
-                        <div className="p-2 bg-surfaceHighlight rounded-lg text-secondary group-hover:text-purple-500 transition-colors"><Shield className="w-5 h-5" /></div>
-                        <div>
-                           <p className="text-sm font-bold">Admin 2FA</p>
-                           <p className="text-[10px] text-green-500 font-bold uppercase tracking-wider mt-0.5">Enabled</p>
-                        </div>
-                     </div>
-                     <ChevronRight className="w-4 h-4 text-secondary" />
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-background/50 border border-border rounded-2xl hover:border-purple-500/30 transition-colors cursor-pointer group">
-                     <div className="flex items-center gap-4">
-                        <div className="p-2 bg-surfaceHighlight rounded-lg text-secondary group-hover:text-purple-500 transition-colors"><Bell className="w-5 h-5" /></div>
-                        <div>
-                           <p className="text-sm font-bold">Login Alerts</p>
-                           <p className="text-xs text-secondary mt-0.5">Notify on new IP</p>
-                        </div>
-                     </div>
-                     <ChevronRight className="w-4 h-4 text-secondary" />
-                  </div>
-               </div>
-            </div>
-
-            <div className="bg-surface border border-border rounded-3xl p-8">
-               <h3 className="text-lg font-bold mb-6 flex items-center gap-2.5">
-                  <div className="p-2 bg-red-500/10 rounded-lg text-red-500"><HardDrive className="w-5 h-5" /></div>
-                  Data & Logs
-               </h3>
-               <div className="p-5 border border-red-500/20 bg-red-500/5 rounded-2xl flex flex-col justify-between h-[160px]">
-                  <div>
-                     <p className="text-sm font-bold text-red-500 mb-1">Flush System Cache</p>
-                     <p className="text-xs text-red-500/70 leading-relaxed">Clear all temporary server-side caches and logs. Use this if users report outdated content.</p>
-                  </div>
-                  <Button size="sm" className="bg-red-500 text-white hover:bg-red-600 border-none w-full shadow-lg shadow-red-500/20">
-                     <Trash2 className="w-4 h-4 mr-2" /> Clear Cache
-                  </Button>
-               </div>
-            </div>
          </div>
       </div>
    );
 };
 
-const ReportsCenter: React.FC = () => {
-   const [selectedReport, setSelectedReport] = useState<any>(null);
+const ReportsCenter: React.FC<{ users: AdminUser[]; links: any[]; tickets: Ticket[] }> = ({ users, links, tickets }) => {
+   const exportCSV = (rows: any[], columns: string[], filename: string) => {
+      const header = columns.join(',');
+      const body = rows.map(r => columns.map(c => `"${(r[c] ?? '').toString().replace(/\"/g, '""')}"`).join(',')).join('\n');
+      const csvContent = [header, body].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+   };
 
-   const handleDownload = (type: 'CSV' | 'PDF' | 'JSON') => {
-      alert(`Downloading ${selectedReport.title} as ${type}...`);
-      setSelectedReport(null);
+   const exportPDF = async (sections: { title: string; rows: string[][]; headers: string[] }[], filename: string) => {
+      const doc = new jsPDF();
+      const colWidth = 48;
+      const truncate = (text: string, len = 14) => {
+         if (!text) return '';
+         return text.length > len ? text.slice(0, len) + '...' : text;
+      };
+
+      sections.forEach((section, idx) => {
+         let y = 12;
+         if (idx > 0) doc.addPage();
+         doc.setFontSize(14);
+         doc.text(section.title, 10, y);
+         y += 6;
+         doc.setFontSize(9);
+         section.headers.forEach((h, i) => doc.text(h, 10 + i * colWidth, y));
+         y += 5;
+         section.rows.forEach(row => {
+            row.forEach((cell, i) => {
+               const text = truncate((cell || '').toString());
+               doc.text(text, 10 + i * colWidth, y);
+            });
+            y += 6;
+            if (y > 280) {
+               doc.addPage();
+               y = 12;
+            }
+         });
+      });
+      doc.save(filename);
+   };
+
+   const handleDownloadUsersCSV = () => {
+      const cols = ['id', 'name', 'email', 'plan', 'status', 'joined'];
+      exportCSV(users, cols, 'users.csv');
+   };
+   const handleDownloadLinksCSV = () => {
+      const cols = ['id', 'user_id', 'title', 'url', 'active', 'clicks_count'];
+      exportCSV(links, cols, 'links.csv');
+   };
+   const handleDownloadTicketsCSV = () => {
+      const cols = ['id', 'title', 'priority', 'status', 'category', 'created_at'];
+      exportCSV(tickets, cols, 'tickets.csv');
+   };
+
+   const handleDownloadUsersPDF = () => {
+      const headers = ['ID', 'Name', 'Email', 'Plan', 'Status'];
+      const rows = users.slice(0, 50).map(u => [u.id, u.name, u.email, u.plan, u.status]);
+      exportPDF([{ title: 'Users', headers, rows }], 'users.pdf');
+   };
+   const handleDownloadLinksPDF = () => {
+      const headers = ['ID', 'Title', 'URL', 'Clicks'];
+      const rows = links.slice(0, 50).map((l: any) => [l.id, l.title, l.url, (l.clicks_count || 0).toString()]);
+      exportPDF([{ title: 'Links', headers, rows }], 'links.pdf');
+   };
+   const handleDownloadTicketsPDF = () => {
+      const headers = ['ID', 'Title', 'Priority', 'Status'];
+      const rows = tickets.slice(0, 50).map(t => [t.id || '', t.title, t.priority, t.status]);
+      exportPDF([{ title: 'Tickets', headers, rows }], 'tickets.pdf');
    };
 
    return (
       <div className="max-w-5xl mx-auto animate-fade-in pb-12 relative">
-         <div className="mb-10">
-            <h2 className="text-3xl font-bold mb-1">Reports Center</h2>
-            <p className="text-secondary">Download system logs and performance reports.</p>
+         <div className="mb-10 flex items-center justify-between">
+            <div>
+               <h2 className="text-3xl font-bold mb-1">Reports Center</h2>
+               <p className="text-secondary">Download quick exports for users, links, and tickets.</p>
+            </div>
+            <Button variant="outline" size="sm" className="border-dashed" onClick={handleDownloadUsersPDF}>
+               <Download className="w-4 h-4 mr-2" /> Export Summary PDF
+            </Button>
          </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-               { title: 'Monthly Revenue Report', date: 'Oct 2023', size: '2.4 MB', type: 'PDF' },
-               { title: 'User Churn Analysis', date: 'Q3 2023', size: '1.1 MB', type: 'CSV' },
-               { title: 'System Error Logs', date: 'Last 7 Days', size: '45.2 MB', type: 'JSON' },
-               { title: 'Platform Usage Stats', date: 'Sep 2023', size: '8.5 MB', type: 'PDF' },
-            ].map((report, i) => (
-               <div key={i} className="bg-surface border border-border p-6 rounded-2xl flex items-center justify-between hover:border-indigo-500/30 transition-colors group">
-                  <div className="flex items-center gap-4">
-                     <div className="p-3 bg-surfaceHighlight rounded-xl text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                        <FileText className="w-6 h-6" />
-                     </div>
-                     <div>
-                        <h3 className="font-bold text-primary">{report.title}</h3>
-                        <p className="text-xs text-secondary">{report.date} • {report.size}</p>
-                     </div>
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-surface border border-border p-6 rounded-2xl flex flex-col gap-4">
+               <div className="flex items-center gap-3">
+                  <FileSpreadsheet className="w-6 h-6 text-indigo-500" />
+                  <div>
+                     <h3 className="font-bold text-primary">Users</h3>
+                     <p className="text-xs text-secondary">Export user list</p>
                   </div>
-                  <Button variant="outline" size="sm" className="border-dashed" onClick={() => setSelectedReport(report)}>
-                     <Download className="w-4 h-4" />
-                  </Button>
                </div>
-            ))}
-         </div>
-
-         {/* Download Modal */}
-         {selectedReport && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedReport(null)}></div>
-               <div className="bg-surface border border-border rounded-3xl p-8 w-full max-w-md relative z-10 animate-fade-in shadow-2xl">
-                  <div className="flex justify-between items-center mb-6">
-                     <h3 className="text-xl font-bold">Download Report</h3>
-                     <button onClick={() => setSelectedReport(null)} className="p-2 hover:bg-surfaceHighlight rounded-full transition-colors"><X className="w-5 h-5" /></button>
-                  </div>
-                  <p className="text-secondary mb-8">Choose a format for <strong>{selectedReport.title}</strong>.</p>
-
-                  <div className="grid grid-cols-1 gap-4">
-                     <button onClick={() => handleDownload('CSV')} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-green-500/50 hover:bg-green-500/5 transition-all group text-left">
-                        <div className="p-2 bg-green-500/10 text-green-500 rounded-lg group-hover:scale-110 transition-transform"><FileSpreadsheet className="w-5 h-5" /></div>
-                        <div>
-                           <p className="font-bold">CSV Format</p>
-                           <p className="text-xs text-secondary">Best for Excel/Sheets</p>
-                        </div>
-                     </button>
-                     <button onClick={() => handleDownload('PDF')} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-red-500/50 hover:bg-red-500/5 transition-all group text-left">
-                        <div className="p-2 bg-red-500/10 text-red-500 rounded-lg group-hover:scale-110 transition-transform"><File className="w-5 h-5" /></div>
-                        <div>
-                           <p className="font-bold">PDF Document</p>
-                           <p className="text-xs text-secondary">Best for presentation</p>
-                        </div>
-                     </button>
-                     <button onClick={() => handleDownload('JSON')} className="flex items-center gap-4 p-4 rounded-xl border border-border hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-all group text-left">
-                        <div className="p-2 bg-yellow-500/10 text-yellow-500 rounded-lg group-hover:scale-110 transition-transform"><FileJson className="w-5 h-5" /></div>
-                        <div>
-                           <p className="font-bold">JSON Data</p>
-                           <p className="text-xs text-secondary">Best for programmatic use</p>
-                        </div>
-                     </button>
-                  </div>
+               <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 border-dashed" onClick={handleDownloadUsersCSV}>CSV</Button>
+                  <Button variant="secondary" size="sm" className="flex-1" onClick={handleDownloadUsersPDF}>PDF</Button>
                </div>
             </div>
-         )}
+            <div className="bg-surface border border-border p-6 rounded-2xl flex flex-col gap-4">
+               <div className="flex items-center gap-3">
+                  <FileText className="w-6 h-6 text-indigo-500" />
+                  <div>
+                     <h3 className="font-bold text-primary">Links</h3>
+                     <p className="text-xs text-secondary">Export links with clicks</p>
+                  </div>
+               </div>
+               <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 border-dashed" onClick={handleDownloadLinksCSV}>CSV</Button>
+                  <Button variant="secondary" size="sm" className="flex-1" onClick={handleDownloadLinksPDF}>PDF</Button>
+               </div>
+            </div>
+            <div className="bg-surface border border-border p-6 rounded-2xl flex flex-col gap-4">
+               <div className="flex items-center gap-3">
+                  <Bug className="w-6 h-6 text-indigo-500" />
+                  <div>
+                     <h3 className="font-bold text-primary">Tickets</h3>
+                     <p className="text-xs text-secondary">Export requests & bugs</p>
+                  </div>
+               </div>
+               <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 border-dashed" onClick={handleDownloadTicketsCSV}>CSV</Button>
+                  <Button variant="secondary" size="sm" className="flex-1" onClick={handleDownloadTicketsPDF}>PDF</Button>
+               </div>
+            </div>
+         </div>
       </div>
    );
 };
 
 const BugTracker: React.FC = () => {
-   const [tickets, setTickets] = useState(mockTicketsData);
-   const [selectedTicket, setSelectedTicket] = useState<BugTicket | null>(null);
+   const [tickets, setTickets] = useState<Ticket[]>([]);
+   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+   const [loading, setLoading] = useState(true);
+   const [creating, setCreating] = useState(false);
 
-   const handleSaveTicket = (updatedTicket: BugTicket) => {
-      setTickets(tickets.map(t => t.id === updatedTicket.id ? updatedTicket : t));
-      setSelectedTicket(null);
+   const loadTickets = async () => {
+      setLoading(true);
+      const data = await fetchTickets();
+      setTickets(data);
+      setLoading(false);
+   };
+
+   useEffect(() => {
+      loadTickets();
+   }, []);
+
+   const handleSaveTicket = async (updatedTicket: Ticket) => {
+      setCreating(true);
+      const saved = updatedTicket.id
+         ? await updateTicket(updatedTicket.id, updatedTicket)
+         : await createTicket(updatedTicket);
+
+      if (saved) {
+         setSelectedTicket(null);
+         await loadTickets();
+      }
+      setCreating(false);
+   };
+
+   const handleQuickUpdate = async (id: string, updates: Partial<Ticket>) => {
+      setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t)); // optimistic
+      await updateTicket(id, updates);
+      await loadTickets();
+   };
+
+   const handleMarkDone = async (id: string) => {
+      await handleQuickUpdate(id, { status: 'closed' });
+   };
+
+   const openNewTicket = () => {
+      setSelectedTicket({
+         title: '',
+         description: '',
+         priority: 'medium',
+         status: 'open',
+         category: 'bug'
+      });
    };
 
    return (
@@ -735,7 +922,7 @@ const BugTracker: React.FC = () => {
                <p className="text-secondary">Track user reported issues and feedback.</p>
             </div>
             {/* Mobile optimized button */}
-            <Button className="shrink-0 p-3 sm:px-6 sm:py-3 h-auto">
+            <Button className="shrink-0 p-3 sm:px-6 sm:py-3 h-auto" onClick={openNewTicket}>
                <Bug className="w-5 h-5 sm:mr-2" />
                <span className="hidden sm:inline">Report Issue</span>
             </Button>
@@ -750,31 +937,69 @@ const BugTracker: React.FC = () => {
                         <th className="px-6 py-4">Issue Title</th>
                         <th className="px-6 py-4">Priority</th>
                         <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Date</th>
+                        <th className="px-6 py-4 text-right">Actions</th>
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                     {tickets.map((ticket) => (
+                     {loading && (
+                        <>
+                           {[...Array(3)].map((_, i) => (
+                              <tr key={i} className="animate-pulse">
+                                 <td className="px-6 py-4">
+                                    <div className="h-3 w-16 bg-white/10 rounded"></div>
+                                 </td>
+                                 <td className="px-6 py-4">
+                                    <div className="h-3 w-40 bg-white/10 rounded mb-2"></div>
+                                    <div className="h-3 w-24 bg-white/5 rounded"></div>
+                                 </td>
+                                 <td className="px-6 py-4">
+                                    <div className="h-5 w-16 bg-white/10 rounded-full"></div>
+                                 </td>
+                                 <td className="px-6 py-4">
+                                    <div className="h-3 w-20 bg-white/10 rounded"></div>
+                                 </td>
+                                 <td className="px-6 py-4 text-right">
+                                    <div className="h-3 w-16 bg-white/10 rounded ml-auto"></div>
+                                 </td>
+                              </tr>
+                           ))}
+                        </>
+                     )}
+                     {!loading && tickets.length === 0 && (
+                        <tr>
+                           <td className="px-6 py-6 text-secondary text-sm" colSpan={5}>No tickets yet. Click “Report Issue” to create one.</td>
+                        </tr>
+                     )}
+                     {!loading && tickets.filter(t => t.status !== 'closed' && t.status !== 'resolved').map((ticket) => (
                         <tr
                            key={ticket.id}
                            className="hover:bg-surfaceHighlight/30 transition-colors cursor-pointer"
                            onClick={() => setSelectedTicket(ticket)}
                         >
-                           <td className="px-6 py-4 font-mono text-sm text-secondary">{ticket.id}</td>
+                           <td className="px-6 py-4 font-mono text-sm text-secondary">{ticket.id?.slice(0,8) || 'NEW'}</td>
                            <td className="px-6 py-4 font-medium text-primary">{ticket.title}</td>
                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-500' :
-                                 ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-500' :
-                                    ticket.priority === 'Medium' ? 'bg-yellow-500/10 text-yellow-500' :
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${ticket.priority === 'critical' ? 'bg-red-500/10 text-red-500' :
+                                 ticket.priority === 'high' ? 'bg-orange-500/10 text-orange-500' :
+                                    ticket.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
                                        'bg-green-500/10 text-green-500'
                                  }`}>
-                                 {ticket.priority}
+                                 {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
                               </span>
                            </td>
                            <td className="px-6 py-4">
-                              <span className="text-sm font-medium">{ticket.status}</span>
+                              <span className="text-sm font-medium capitalize">{ticket.status.replace('_', ' ')}</span>
                            </td>
-                           <td className="px-6 py-4 text-right text-sm text-secondary">{ticket.date}</td>
+                           <td className="px-6 py-4 text-right text-sm text-secondary flex items-center justify-end gap-3" onClick={e => e.stopPropagation()}>
+                              <button
+                                 className="p-2 rounded-full bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
+                                 title="Mark as done"
+                                 onClick={() => handleMarkDone(ticket.id || '')}
+                              >
+                                 <Check className="w-4 h-4" />
+                              </button>
+                              <span>{ticket.created_at ? new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '—'}</span>
+                           </td>
                         </tr>
                      ))}
                   </tbody>
@@ -782,15 +1007,71 @@ const BugTracker: React.FC = () => {
             </div>
          </div>
 
-         {/* Ticket Edit Modal */}
+         {/* Finished Tickets */}
+         <div className="mt-10 bg-surface border border-border rounded-3xl overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+               <div>
+                  <h3 className="font-bold">Finished</h3>
+                  <p className="text-secondary text-sm">Resolved / Closed tickets.</p>
+               </div>
+            </div>
+            <div className="overflow-x-auto">
+               <table className="w-full min-w-[700px]">
+                  <thead>
+                     <tr className="bg-surfaceHighlight/50 border-b border-border text-left text-xs font-bold text-secondary uppercase tracking-wider">
+                        <th className="px-6 py-4">Ticket ID</th>
+                        <th className="px-6 py-4">Issue Title</th>
+                        <th className="px-6 py-4">Priority</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4 text-right">Date</th>
+                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                     {loading && (
+                        <tr className="animate-pulse">
+                           <td className="px-6 py-4"><div className="h-3 w-16 bg-white/10 rounded"></div></td>
+                           <td className="px-6 py-4"><div className="h-3 w-40 bg-white/10 rounded mb-2"></div><div className="h-3 w-24 bg-white/5 rounded"></div></td>
+                           <td className="px-6 py-4"><div className="h-5 w-16 bg-white/10 rounded-full"></div></td>
+                           <td className="px-6 py-4"><div className="h-3 w-20 bg-white/10 rounded"></div></td>
+                           <td className="px-6 py-4 text-right"><div className="h-3 w-16 bg-white/10 rounded ml-auto"></div></td>
+                        </tr>
+                     )}
+                     {!loading && tickets.filter(t => t.status === 'closed' || t.status === 'resolved').length === 0 && (
+                        <tr>
+                           <td className="px-6 py-6 text-secondary text-sm" colSpan={5}>No finished tickets yet.</td>
+                        </tr>
+                     )}
+                     {!loading && tickets.filter(t => t.status === 'closed' || t.status === 'resolved').map(ticket => (
+                        <tr key={ticket.id} className="hover:bg-surfaceHighlight/20 transition-colors cursor-pointer" onClick={() => setSelectedTicket(ticket)}>
+                           <td className="px-6 py-4 font-mono text-sm text-secondary">{ticket.id?.slice(0,8) || 'NEW'}</td>
+                           <td className="px-6 py-4 font-medium text-primary">{ticket.title}</td>
+                           <td className="px-6 py-4">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${ticket.priority === 'critical' ? 'bg-red-500/10 text-red-500' :
+                                 ticket.priority === 'high' ? 'bg-orange-500/10 text-orange-500' :
+                                    ticket.priority === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
+                                       'bg-green-500/10 text-green-500'
+                                 }`}>
+                                 {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
+                              </span>
+                           </td>
+                           <td className="px-6 py-4 text-sm font-medium capitalize">{ticket.status.replace('_', ' ')}</td>
+                           <td className="px-6 py-4 text-right text-sm text-secondary">{ticket.created_at ? new Date(ticket.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '—'}</td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
+            </div>
+         </div>
+
+         {/* Ticket Create/Edit Modal */}
          {selectedTicket && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedTicket(null)}></div>
                <div className="bg-surface border border-border rounded-3xl p-8 w-full max-w-lg relative z-10 animate-fade-in shadow-2xl flex flex-col max-h-[90vh]">
                   <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
                      <div>
-                        <div className="text-xs font-mono text-secondary mb-1">{selectedTicket.id}</div>
-                        <h3 className="text-xl font-bold">Edit Ticket</h3>
+                        <div className="text-xs font-mono text-secondary mb-1">{selectedTicket.id || 'NEW TICKET'}</div>
+                        <h3 className="text-xl font-bold">{selectedTicket.id ? 'Edit Ticket' : 'Create Ticket'}</h3>
                      </div>
                      <button onClick={() => setSelectedTicket(null)} className="p-2 hover:bg-surfaceHighlight rounded-full transition-colors"><X className="w-5 h-5" /></button>
                   </div>
@@ -814,7 +1095,7 @@ const BugTracker: React.FC = () => {
                            className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:border-indigo-500 outline-none resize-none"
                         />
                      </div>
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-3 gap-4">
                         <div>
                            <label className="text-xs font-bold text-secondary uppercase mb-2 block">Priority</label>
                            <select
@@ -822,10 +1103,10 @@ const BugTracker: React.FC = () => {
                               onChange={(e) => setSelectedTicket({ ...selectedTicket, priority: e.target.value as any })}
                               className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:border-indigo-500 outline-none"
                            >
-                              <option>Low</option>
-                              <option>Medium</option>
-                              <option>High</option>
-                              <option>Critical</option>
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                              <option value="critical">Critical</option>
                            </select>
                         </div>
                         <div>
@@ -835,9 +1116,21 @@ const BugTracker: React.FC = () => {
                               onChange={(e) => setSelectedTicket({ ...selectedTicket, status: e.target.value as any })}
                               className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:border-indigo-500 outline-none"
                            >
-                              <option>Open</option>
-                              <option>In Progress</option>
-                              <option>Resolved</option>
+                              <option value="open">Open</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="resolved">Resolved</option>
+                              <option value="closed">Closed</option>
+                           </select>
+                        </div>
+                        <div>
+                           <label className="text-xs font-bold text-secondary uppercase mb-2 block">Type</label>
+                           <select
+                              value={selectedTicket.category}
+                              onChange={(e) => setSelectedTicket({ ...selectedTicket, category: e.target.value as any })}
+                              className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:border-indigo-500 outline-none"
+                           >
+                              <option value="bug">Bug</option>
+                              <option value="feature">Feature</option>
                            </select>
                         </div>
                      </div>
@@ -845,7 +1138,7 @@ const BugTracker: React.FC = () => {
 
                   <div className="pt-6 mt-6 border-t border-border flex justify-end gap-3">
                      <Button variant="ghost" onClick={() => setSelectedTicket(null)}>Cancel</Button>
-                     <Button onClick={() => handleSaveTicket(selectedTicket)}>Save Changes</Button>
+                     <Button onClick={() => handleSaveTicket(selectedTicket)} disabled={creating || !selectedTicket.title.trim()}>{creating ? 'Saving...' : 'Save'}</Button>
                   </div>
                </div>
             </div>
@@ -861,6 +1154,13 @@ const SuperAdmin: React.FC = () => {
    const { theme, toggleTheme } = useTheme();
    const { user } = useAuth();
    const navigate = useNavigate();
+   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+   const [adminMetrics, setAdminMetrics] = useState<AdminMetrics>({ revenue: '$0', activeSubs: 0, totalUsers: 0, pageViews: 0 });
+   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
+   const [adminLoading, setAdminLoading] = useState(false);
+   const [adminLinks, setAdminLinks] = useState<any[]>([]);
+   const [adminTickets, setAdminTickets] = useState<Ticket[]>([]);
+   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
    // Login State
    const [email, setEmail] = useState('');
@@ -869,38 +1169,116 @@ const SuperAdmin: React.FC = () => {
 
    // Check auth on mount or user change
    React.useEffect(() => {
+      // Restore last active tab
+      const savedTab = sessionStorage.getItem('admin-active-tab') as TabType | null;
+      if (savedTab) setActiveTab(savedTab);
       checkAdminAccess();
    }, [user]);
 
-   const checkAdminAccess = async () => {
-      // If no user is logged in, we stay on the login screen
-      if (!user) {
-         setLoading(false);
-         setIsAuthenticated(false);
-         return;
+   React.useEffect(() => {
+      if (isAuthenticated) {
+         loadAdminData();
       }
+   }, [isAuthenticated]);
 
+   const checkAdminAccess = async () => {
       try {
+         setLoading(true);
+
+         // Use existing user from context or hydrate from stored session
+         let sessionUser = user;
+         if (!sessionUser) {
+            const { data } = await supabase.auth.getSession();
+            sessionUser = data.session?.user || null;
+         }
+
+         if (!sessionUser) {
+            setIsAuthenticated(false);
+            return;
+         }
+
          // Check if the current user is a superadmin
-         const { data, error } = await supabase
+         const { data: profile, error } = await supabase
             .from('profiles')
             .select('role')
-            .eq('id', user.id)
+            .eq('id', sessionUser.id)
             .single();
 
          if (error) throw error;
 
-         if (data?.role === 'superadmin') {
-            setIsAuthenticated(true);
-         } else {
-            // Logged in but not superadmin
-            setIsAuthenticated(false);
-         }
+         setIsAuthenticated(profile?.role === 'superadmin');
       } catch (err) {
          console.error('Error checking role:', err);
          setIsAuthenticated(false);
       } finally {
          setLoading(false);
+      }
+   };
+
+   const loadAdminData = async () => {
+      if (!user) return;
+      setAdminLoading(true);
+      try {
+         const profiles = await fetchProfilesForAdmin();
+
+         const mappedUsers: AdminUser[] = (profiles || []).map((p) => ({
+            id: p.id,
+            name: p.username || p.email || 'User',
+            email: p.email || 'unknown',
+            avatar: p.avatar_url || '/defaultavatar.jpg',
+            plan: (p.plan || 'free').toLowerCase() === 'agency' ? 'Agency' : (p.plan || 'free').toLowerCase() === 'pro' ? 'Pro' : 'Free',
+            status: 'Active',
+            joined: p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '—'
+         }));
+
+         const activeSubs = profiles.filter((p) => (p.plan || '').toLowerCase() !== 'free').length;
+         const pageViews = await fetchPageViewsCount();
+
+         setAdminUsers(mappedUsers);
+         setAdminMetrics({
+            revenue: '$0',
+            activeSubs,
+            totalUsers: profiles.length,
+            pageViews
+         });
+
+         const [recentProfiles, recentLinks, linksForAdmin, ticketsForAdmin] = await Promise.all([
+            fetchRecentProfiles(6),
+            fetchRecentLinks(6),
+            fetchLinksForAdmin(),
+            fetchTickets()
+         ]);
+
+         const profileActivities: ActivityItem[] = (recentProfiles || []).map((p) => ({
+            id: `profile-${p.id}`,
+            title: p.username || 'New user',
+            subtitle: 'Joined LYNKR',
+            time: p.created_at,
+            kind: 'profile'
+         }));
+
+         const linkActivities: ActivityItem[] = (recentLinks || []).map((l: any) => ({
+            id: `link-${l.id}`,
+            title: l.profiles?.username || 'Someone',
+            subtitle: `Created link: ${l.title || 'Untitled'}`,
+            time: l.created_at,
+            kind: 'link'
+         }));
+
+         const merged = [...profileActivities, ...linkActivities].sort((a, b) => {
+            const aTime = a.time ? new Date(a.time).getTime() : 0;
+            const bTime = b.time ? new Date(b.time).getTime() : 0;
+            return bTime - aTime;
+         });
+
+         setActivityFeed(merged.slice(0, 8));
+         setAdminLinks(linksForAdmin || []);
+         setAdminTickets(ticketsForAdmin || []);
+      } catch (err) {
+         console.error('Admin data load failed', err);
+         toast.error('Failed to load admin data');
+      } finally {
+         setAdminLoading(false);
       }
    };
 
@@ -950,8 +1328,17 @@ const SuperAdmin: React.FC = () => {
       navigate('/'); // Redirect to home on logout
    };
 
+   // Show nothing but a loader while checking auth to avoid flicker
+   if (loading) {
+      return (
+         <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4 font-sans">
+            <div className="animate-spin h-10 w-10 border-2 border-white/40 border-t-white rounded-full"></div>
+         </div>
+      );
+   }
+
    // Render Login Screen if not authenticated
-   if (!isAuthenticated && !loading) {
+   if (!isAuthenticated) {
       return (
          <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4 relative overflow-hidden font-sans">
             {/* Background Effects */}
@@ -1037,16 +1424,39 @@ const SuperAdmin: React.FC = () => {
       );
    }
 
+   const setTab = (tab: TabType) => {
+      setActiveTab(tab);
+      sessionStorage.setItem('admin-active-tab', tab);
+      setIsMobileMenuOpen(false);
+   };
+
+   const handleOverviewExport = async () => {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text('LYNKR Overview', 10, 15);
+      doc.setFontSize(12);
+      doc.text(`Total Users: ${adminMetrics.totalUsers}`, 10, 30);
+      doc.text(`Active Subs: ${adminMetrics.activeSubs}`, 10, 38);
+      doc.text(`Page Views: ${adminMetrics.pageViews}`, 10, 46);
+      doc.text(`Revenue: ${adminMetrics.revenue}`, 10, 54);
+      doc.text('Tickets (first 10):', 10, 70);
+      adminTickets.slice(0, 10).forEach((t, i) => {
+         doc.text(`- ${t.title} [${t.status}]`, 12, 78 + i * 6);
+      });
+      doc.save('overview-report.pdf');
+   };
+
    // Dashboard Render
    const renderContent = () => {
       switch (activeTab) {
-         case 'analytics': return <AnalyticsDashboard />;
-         case 'users': return <UserManagement />;
+         case 'analytics': return <AnalyticsDashboard metrics={adminMetrics} activity={activityFeed} loading={adminLoading} onExport={handleOverviewExport} />;
+         case 'users': return <UserManagement users={adminUsers} loading={adminLoading} />;
          case 'pricing': return <PricingManagement />;
          case 'settings': return <AdminSettings />;
-         case 'reports': return <ReportsCenter />;
+         case 'reports': return <ReportsCenter users={adminUsers} links={adminLinks} tickets={adminTickets} />;
          case 'bugs': return <BugTracker />;
-         default: return <AnalyticsDashboard />;
+         default: return <AnalyticsDashboard metrics={adminMetrics} activity={activityFeed} loading={adminLoading} />;
       }
    };
 
@@ -1075,7 +1485,7 @@ const SuperAdmin: React.FC = () => {
                ].map((item) => (
                   <button
                      key={item.id}
-                     onClick={() => setActiveTab(item.id as TabType)}
+                     onClick={() => setTab(item.id as TabType)}
                      className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden ${activeTab === item.id
                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 font-bold'
                            : 'text-secondary hover:bg-surfaceHighlight hover:text-primary'
@@ -1114,8 +1524,70 @@ const SuperAdmin: React.FC = () => {
                </div>
                <span className="font-bold text-lg">LYNKR <span className="text-[10px] bg-indigo-500 text-white px-1 py-0.5 rounded ml-1">ADMIN</span></span>
             </div>
-            <button onClick={handleLogout} className="p-2 bg-surfaceHighlight rounded-lg text-red-500"><LogOut className="w-5 h-5" /></button>
+            <div className="flex items-center gap-2">
+               <button onClick={toggleTheme} className="p-2 bg-surfaceHighlight rounded-lg text-secondary"><Sun className="w-5 h-5" /></button>
+               <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 bg-surfaceHighlight rounded-lg text-secondary"><Menu className="w-5 h-5" /></button>
+            </div>
          </div>
+
+         {/* Mobile Sidebar (Slide Over) */}
+         {isMobileMenuOpen && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+               <div className="absolute right-0 top-0 h-full w-72 bg-surface border-l border-border p-6 flex flex-col animate-fade-in transition-transform duration-300">
+                  <div className="flex items-center justify-between mb-8">
+                     <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                           <Shield className="w-4 h-4 fill-white/20" />
+                        </div>
+                        <div>
+                           <span className="font-bold text-lg tracking-tight block leading-none">LYNKR</span>
+                           <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-widest bg-indigo-500/10 px-1.5 py-0.5 rounded mt-1 inline-block">Admin</span>
+                        </div>
+                     </div>
+                     <button onClick={() => setIsMobileMenuOpen(false)}><X className="w-6 h-6 text-secondary" /></button>
+                  </div>
+                  <nav className="space-y-2 flex-1">
+                     {[
+                        { id: 'analytics', icon: LayoutGrid, label: 'Overview' },
+                        { id: 'users', icon: Users, label: 'User Management' },
+                        { id: 'pricing', icon: Banknote, label: 'Pricing Plans' },
+                        { id: 'bugs', icon: Bug, label: 'Requests & Bugs' },
+                        { id: 'reports', icon: FileDown, label: 'Reports & Data' },
+                        { id: 'settings', icon: Sliders, label: 'Settings' },
+                     ].map((item) => (
+                        <button
+                           key={item.id}
+                           onClick={() => setTab(item.id as TabType)}
+                           className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden ${activeTab === item.id
+                              ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 font-bold'
+                              : 'text-secondary hover:bg-surfaceHighlight hover:text-primary'
+                           }`}
+                        >
+                           <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'text-white' : 'text-secondary group-hover:text-indigo-500'} transition-colors duration-300`} />
+                           <span className="relative z-10">{item.label}</span>
+                           {activeTab === item.id && <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none"></div>}
+                        </button>
+                     ))}
+                  </nav>
+                  <div className="mt-auto border-t border-border pt-4 space-y-3">
+                     <div className="flex items-center justify-between px-2">
+                        <span className="text-sm font-medium text-secondary">Theme</span>
+                        <button
+                           onClick={toggleTheme}
+                           className="p-2 rounded-lg bg-surfaceHighlight text-primary"
+                        >
+                           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                        </button>
+                     </div>
+                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-secondary hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all font-bold">
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
 
          {/* Main Content */}
          <main className="flex-1 bg-background overflow-y-auto h-screen relative scroll-smooth lg:pt-0 pt-20">
@@ -1128,3 +1600,4 @@ const SuperAdmin: React.FC = () => {
 };
 
 export default SuperAdmin;
+

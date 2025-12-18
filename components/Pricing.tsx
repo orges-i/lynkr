@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import { usePricing } from '../context/PricingContext';
 
 const Pricing: React.FC = () => {
-  const [isAnnual, setIsAnnual] = useState(true);
+  const [isAnnual, setIsAnnual] = useState(false);
   const { plans } = usePricing();
 
   return (
