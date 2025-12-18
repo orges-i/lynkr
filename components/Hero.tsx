@@ -17,18 +17,20 @@ const Hero: React.FC = () => {
         <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-purple-500/30 rounded-full mix-blend-screen filter blur-3xl opacity-50 animate-blob animation-delay-2000" />
         <div className="absolute -bottom-8 left-1/3 w-72 h-72 bg-pink-500/30 rounded-full mix-blend-screen filter blur-3xl opacity-50 animate-blob animation-delay-4000" />
 
-        {/* Particle Shard Effect */}
-        <Antigravity
-          count={150}
-          particleSize={1.5}
-          color={theme === 'dark' ? '#FFFFFF' : '#1D1D1F'}
-          magnetRadius={18}
-          ringRadius={12}
-          autoAnimate={true}
-          lerpSpeed={0.1}
-          waveSpeed={0.5}
-          waveAmplitude={0.8}
-        />
+        {/* Particle Shard Effect (desktop only; hide on tablet/mobile to avoid cursor-less devices) */}
+        <div className="hidden lg:block">
+          <Antigravity
+            count={150}
+            particleSize={1.5}
+            color={theme === 'dark' ? '#FFFFFF' : '#1D1D1F'}
+            magnetRadius={18}
+            ringRadius={12}
+            autoAnimate={true}
+            lerpSpeed={0.1}
+            waveSpeed={0.5}
+            waveAmplitude={0.8}
+          />
+        </div>
       </div>
 
       {/* Subtle Gradient Overlay at bottom for blending */}

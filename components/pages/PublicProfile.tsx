@@ -81,14 +81,16 @@ const PublicProfile: React.FC = () => {
 
     // --- Theme Logic (Synced with PhonePreview) ---
     const themeClassMap: Record<string, string> = {
-        simple: 'bg-white text-zinc-900',
-        dark: 'bg-zinc-950 text-white',
-        midnight: 'bg-slate-950 text-blue-50',
-        sunset: 'bg-gradient-to-b from-orange-400 to-rose-500 text-white',
-        ocean: 'bg-gradient-to-b from-cyan-400 to-blue-600 text-white',
-        forest: 'bg-gradient-to-b from-emerald-400 to-green-800 text-white',
-        pastel: 'bg-gradient-to-b from-pink-100 to-indigo-100 text-zinc-800',
-        retro: 'bg-[#f4ebd0] text-[#122620]',
+        simple: 'bg-gray-100 text-gray-900',
+        dark: 'bg-black text-white',
+        midnight: 'bg-gradient-to-b from-indigo-900 via-purple-900 to-black text-white',
+        sunset: 'bg-gradient-to-br from-orange-500 via-pink-500 to-purple-600 text-white',
+        ocean: 'bg-gradient-to-b from-cyan-500 to-blue-600 text-white',
+        forest: 'bg-gradient-to-b from-emerald-800 to-green-900 text-white',
+        pastel: 'bg-gradient-to-tr from-rose-100 to-teal-100 text-zinc-800',
+        retro: 'bg-[#f4e4bc] text-[#2c3e50]',
+        mint: 'bg-gradient-to-b from-emerald-50 to-teal-100 text-teal-900',
+        air: 'bg-gradient-to-b from-slate-50 to-blue-100 text-slate-800',
         custom: 'bg-center bg-cover bg-no-repeat text-white'
     };
 

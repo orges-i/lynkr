@@ -29,7 +29,7 @@ export interface Link {
 
 export interface AppearanceSettings {
     user_id: string;
-    theme: 'simple' | 'dark' | 'midnight' | 'sunset' | 'ocean' | 'forest' | 'pastel' | 'retro' | 'custom';
+    theme: 'simple' | 'dark' | 'midnight' | 'sunset' | 'ocean' | 'forest' | 'pastel' | 'retro' | 'mint' | 'air' | 'custom';
     button_style: 'rounded' | 'square' | 'pill' | 'hard';
     button_fill: 'solid' | 'outline' | 'ghost';
     button_shadow: 'none' | 'soft' | 'hard';

@@ -938,6 +938,7 @@ const Dashboard: React.FC = () => {
 
    // Debounce ref for auto-saving
    const debounceRef = React.useRef<NodeJS.Timeout | null>(null);
+   const contentRef = React.useRef<HTMLDivElement | null>(null);
 
    // -- Delete Modal State --
    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -1082,6 +1083,16 @@ const Dashboard: React.FC = () => {
          thumbnail_url: undefined
       };
       setLinks([...links, optimisticLink]); // Add to bottom to match newPosition logic
+
+      // Smoothly scroll to the newest link so it’s immediately visible
+      requestAnimationFrame(() => {
+         const scroller = contentRef.current;
+         if (scroller) {
+            scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+         } else {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+         }
+      });
 
       try {
          const created = await createLink(user.id, {
@@ -1453,7 +1464,7 @@ const Dashboard: React.FC = () => {
             </header>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 w-full scrollbar-hide">
+            <div ref={contentRef} className="flex-1 overflow-y-auto p-4 md:p-8 w-full scrollbar-hide">
                {renderView()}
             </div>
 
