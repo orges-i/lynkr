@@ -86,7 +86,7 @@ interface LinkItem {
    title: string;
    url: string;
    active: boolean;
-   clicks: number;
+   clicks_count: number;
    position: number;
    thumbnail_url?: string;
 }
@@ -334,6 +334,7 @@ const SortableLinkItem: React.FC<{
       transition,
       zIndex: isDragging ? 50 : 'auto',
       opacity: isDragging ? 0.3 : 1,
+      touchAction: 'none'
    };
 
    return (
@@ -399,32 +400,19 @@ const SortableLinkItem: React.FC<{
                               className="p-1 rounded-md hover:bg-red-500/10 text-secondary hover:text-red-500 transition-colors"
                               title="Remove Thumbnail"
                            >
-                              <X className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                            </button>
                         )}
-                        <input
-                           id={`thumb-upload-${link.id}`}
-                           type="file"
-                           className="hidden"
-                           accept="image/*"
-                           onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) onUpdate(link.id, { thumbnailFile: file } as any);
-                           }}
-                        />
                      </div>
-                     <button
-                        onClick={() => toast('Link detailed analytics coming soon!', { icon: 'ℹ️' })}
-                        className="p-2 rounded-lg hover:bg-surfaceHighlight text-secondary hover:text-primary transition-colors"
-                     >
-                        <BarChart3 className="w-4 h-4" />
-                     </button>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-secondary">
-                     <span className="flex items-center gap-1 cursor-help" onClick={() => toast('Click tracking coming soon!', { icon: 'ℹ️' })}>
+
+                     {/* Clicks Badge */}
+                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surfaceHighlight border border-border text-[10px] font-bold text-secondary uppercase tracking-wider group-hover:bg-primary/5 group-hover:text-primary group-hover:border-primary/20 transition-all">
                         <BarChart3 className="w-3 h-3" />
-                        {link.clicks || 0} clicks
-                     </span>
+                        <span>{link.clicks_count || 0} Clicks</span>
+                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs text-secondary">
                      <button
                         onClick={() => onDelete(link.id)}
                         className="p-2 rounded-lg hover:bg-red-500/10 text-secondary hover:text-red-500 transition-colors"
@@ -434,6 +422,17 @@ const SortableLinkItem: React.FC<{
                      </button>
                   </div>
                </div>
+
+               <input
+                  id={`thumb-upload-${link.id}`}
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => {
+                     const file = e.target.files?.[0];
+                     if (file) onUpdate(link.id, { thumbnailFile: file } as any);
+                  }}
+               />
             </div>
          </div>
       </div>
@@ -1044,7 +1043,7 @@ const Dashboard: React.FC = () => {
                   title: l.title,
                   url: l.url,
                   active: l.active,
-                  clicks: 0, // Placeholder until Analytics Phase
+                  clicks_count: l.clicks_count || 0,
                   position: l.position || 0,
                   thumbnail_url: l.thumbnail_url
                })));
@@ -1078,7 +1077,7 @@ const Dashboard: React.FC = () => {
          title: 'New Link',
          url: 'https://',
          active: true,
-         clicks: 0,
+         clicks_count: 0,
          position: newPosition,
          thumbnail_url: undefined
       };
@@ -1216,7 +1215,7 @@ const Dashboard: React.FC = () => {
       // Regular updates (text/boolean)
       let cleanedUpdates = { ...updates };
       if ('username' in cleanedUpdates && typeof cleanedUpdates.username === 'string') {
-         cleanedUpdates.username = cleanedUpdates.username.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
+         cleanedUpdates.username = cleanedUpdates.username.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9-_]/g, '');
       }
 
       // 1. Optimistic Update
@@ -1264,15 +1263,52 @@ const Dashboard: React.FC = () => {
       }, 1000);
    };
 
+   const getSanitizedUsername = () => {
+      return (profileConfig.username || 'user').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9-_]/g, '');
+   };
+
+   const handleCopyLink = () => {
+      const url = `${window.location.origin}/${getSanitizedUsername()}`;
+      navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard!');
+   };
+
+   const handleShareProfile = async () => {
+      const url = `${window.location.origin}/${getSanitizedUsername()}`;
+      if (navigator.share) {
+         try {
+            await navigator.share({
+               title: `${profileConfig.username || 'User'}'s LYNKR Profile`,
+               url: url,
+            });
+         } catch (e) { /* ignore cancel */ }
+      } else {
+         navigator.clipboard.writeText(url);
+         toast.success('Profile link copied!');
+      }
+   };
+
+   const handleOpenProfile = () => {
+      window.open(`/${getSanitizedUsername()}`, '_blank');
+   };
+
    const renderView = () => {
       switch (currentView) {
          case 'links':
-            return <LinksView
-               links={links}
-               onAdd={handleCreateLink}
-               onDelete={handleDeleteClick}
-               onUpdate={handleUpdateLink}
-            />;
+            return (
+               <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleReorderLinks}
+               >
+                  <LinksView
+                     links={links}
+                     onAdd={handleCreateLink}
+                     onDelete={handleDeleteClick}
+                     onUpdate={handleUpdateLink}
+                  />
+               </DndContext>
+            );
          case 'appearance':
             return <AppearanceView
                config={profileConfig}
@@ -1283,12 +1319,20 @@ const Dashboard: React.FC = () => {
          case 'settings':
             return <SettingsView user={user} profileConfig={profileConfig} onUpdate={handleUpdateConfig} />;
          default:
-            return <LinksView
-               links={links}
-               onAdd={handleCreateLink}
-               onDelete={handleDeleteClick}
-               onUpdate={handleUpdateLink}
-            />;
+            return (
+               <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleReorderLinks}
+               >
+                  <LinksView
+                     links={links}
+                     onAdd={handleCreateLink}
+                     onDelete={handleDeleteClick}
+                     onUpdate={handleUpdateLink}
+                  />
+               </DndContext>
+            );
       }
    };
 
@@ -1394,12 +1438,15 @@ const Dashboard: React.FC = () => {
                   <h1 className="font-semibold text-lg capitalize">{currentView}</h1>
                </div>
                <div className="flex items-center gap-3">
-                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surfaceHighlight border border-border text-xs text-secondary hover:border-primary/30 transition-colors cursor-pointer group">
+                  <div
+                     onClick={handleCopyLink}
+                     className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surfaceHighlight border border-border text-xs text-secondary hover:border-primary/30 transition-colors cursor-pointer group"
+                  >
                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                     <span className="max-w-[100px] truncate">lynkr.com/{(profileConfig.username || 'user').toLowerCase()}</span>
+                     <span className="max-w-[150px] truncate">/{getSanitizedUsername()}</span>
                      <Copy className="w-3 h-3 ml-2 group-hover:text-primary" />
                   </div>
-                  <Button variant="secondary" size="sm" className="hidden sm:flex">
+                  <Button onClick={handleShareProfile} variant="secondary" size="sm" className="hidden sm:flex">
                      <Share2 className="w-4 h-4 mr-2" /> Share
                   </Button>
                </div>
@@ -1415,7 +1462,7 @@ const Dashboard: React.FC = () => {
                <aside className="fixed right-0 top-0 h-full w-[420px] border-l border-border bg-surface hidden xl:flex flex-col items-center pt-20 pb-8 px-8 transition-all duration-500 z-20">
                   <div className="absolute top-12 left-0 right-0 px-8 flex items-center justify-between">
                      <h3 className="text-sm font-medium text-secondary uppercase tracking-widest">Live Preview</h3>
-                     <Button variant="ghost" size="sm" className="text-secondary hover:text-primary">
+                     <Button onClick={handleOpenProfile} variant="ghost" size="sm" className="text-secondary hover:text-primary">
                         <ExternalLink className="w-4 h-4 mr-2" /> Open
                      </Button>
                   </div>

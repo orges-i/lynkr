@@ -22,6 +22,7 @@ export interface Link {
     url: string;
     active: boolean;
     position: number;
+    clicks_count?: number;
     thumbnail_url?: string;
     created_at?: string;
 }
@@ -194,6 +195,64 @@ export const updateAppearance = async (userId: string, settings: Partial<Appeara
     return data;
 };
 
+/**
+ * Fetch a public profile and its appearance settings by username.
+ * Used for the public profile page.
+ */
+export const fetchPublicProfileByUsername = async (username: string): Promise<{ profile: Profile; appearance: AppearanceSettings } | null> => {
+    // 1. Get Profile (Case-insensitive match)
+    const { data: profile, error: pError } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('username', username)
+        .maybeSingle();
+
+    if (pError || !profile) return null;
+
+    // 2. Get Appearance
+    const { data: appearance, error: aError } = await supabase
+        .from('appearance_settings')
+        .select('*')
+        .eq('user_id', profile.id)
+        .single();
+
+    if (aError) {
+        // Fallback to defaults if no settings found
+        return {
+            profile,
+            appearance: {
+                user_id: profile.id,
+                theme: 'simple',
+                button_style: 'rounded',
+                button_fill: 'solid',
+                button_shadow: 'none',
+                font: 'sans'
+            }
+        };
+    }
+
+    return { profile, appearance };
+};
+
+/**
+ * Fetch ONLY active links for a public profile.
+ */
+export const fetchPublicLinksByUserId = async (userId: string): Promise<Link[]> => {
+    const { data, error } = await supabase
+        .from('links')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('active', true)
+        .order('position', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching public links:', error);
+        return [];
+    }
+    return data || [];
+};
+
+
 // -- Storage Functions --
 
 /**
@@ -229,4 +288,16 @@ export const uploadImage = async (
         .getPublicUrl(filePath);
 
     return data.publicUrl;
+};
+/**
+ * Track a link click by calling the increment_link_clicks RPC.
+ */
+export const trackLinkClick = async (linkId: string): Promise<void> => {
+    const { error } = await supabase.rpc('increment_link_clicks', {
+        link_id_input: linkId
+    });
+
+    if (error) {
+        console.error('Error tracking link click:', error);
+    }
 };

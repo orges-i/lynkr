@@ -22,6 +22,7 @@ import Careers from './components/pages/Careers';
 import Legal from './components/pages/Legal';
 import Dashboard from './components/pages/Dashboard';
 import SuperAdmin from './components/pages/SuperAdmin';
+import PublicProfile from './components/pages/PublicProfile';
 
 // Layout wrapper for public pages to include Navbar/Footer
 const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -63,6 +64,9 @@ const AppContent: React.FC = () => {
         <Route path="/changelog" element={<PublicLayout><Changelog /></PublicLayout>} />
         <Route path="/careers" element={<PublicLayout><Careers /></PublicLayout>} />
         <Route path="/legal" element={<PublicLayout><Legal /></PublicLayout>} />
+
+        {/* Public Profile Route (Catch-all) */}
+        <Route path="/:username" element={<PublicProfile />} />
       </Routes>
     </div>
   );
