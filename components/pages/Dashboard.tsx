@@ -29,13 +29,15 @@ import {
    Sun,
    Moon,
    Camera,
+   Phone,
+   Mail,
+   MessageCircle,
+   Linkedin,
    Twitter,
    Instagram,
-   Linkedin,
    Facebook,
    Youtube,
    Github,
-   Mail,
    Lock
 } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -89,7 +91,22 @@ interface LinkItem {
    clicks_count: number;
    position: number;
    thumbnail_url?: string;
+   show_icon?: boolean;
 }
+
+type ContactInfo = {
+   phone?: string;
+   email?: string;
+   whatsapp?: string;
+   linkedin?: string;
+};
+
+type ContactToggles = {
+   phone: boolean;
+   email: boolean;
+   whatsapp: boolean;
+   linkedin: boolean;
+};
 
 interface ProfileConfig {
    username: string;
@@ -154,7 +171,7 @@ const SidebarItem: React.FC<{
    </button>
 );
 
-const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig }> = ({ links, config }) => {
+const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig, contacts?: ContactInfo }> = ({ links, config, contacts }) => {
    const themeClass = themes[config.theme];
    const btnShapeClass = buttonStyles[config.buttonStyle];
 
@@ -169,9 +186,13 @@ const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig }> = ({ 
    let customTextStyle = {};
    let forceLightMode = isLight; // Default to theme
 
+   // Resolved base text color for icons/inline styles
+   let resolvedTextColor = isLight ? '#111827' : '#ffffff';
+
    if (config.fontColor && config.fontColor !== 'auto') {
       textColorClass = ''; // Clear default class if overriding
       customTextStyle = { color: config.fontColor };
+      resolvedTextColor = config.fontColor;
 
       // Force button logic based on text color choice
       // If White Text, implies Dark Mode (Light Buttons)
@@ -283,19 +304,69 @@ const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig }> = ({ 
                   {config.bio}
                </p>
 
+               {/* Contact Row */}
+            {contacts && (contacts.phone || contacts.email || contacts.whatsapp || contacts.linkedin) && (
+               <div className="w-full mb-4">
+                  <div className="flex items-center justify-center gap-3">
+                     {contacts.phone && (
+                        <a
+                           href={`tel:${contacts.phone}`}
+                           className={`w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 transition-all ${forceLightMode ? 'bg-black/10 border border-black/10' : 'bg-white/10 border border-white/10'}`}
+                           style={{ color: resolvedTextColor }}
+                        >
+                           <Phone className="w-4 h-4" />
+                        </a>
+                     )}
+                     {contacts.email && (
+                        <a
+                           href={`mailto:${contacts.email}`}
+                           className={`w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 transition-all ${forceLightMode ? 'bg-black/10 border border-black/10' : 'bg-white/10 border border-white/10'}`}
+                           style={{ color: resolvedTextColor }}
+                        >
+                           <Mail className="w-4 h-4" />
+                        </a>
+                     )}
+                     {contacts.whatsapp && (
+                        <a
+                           href={`https://wa.me/${contacts.whatsapp}`}
+                           target="_blank"
+                           rel="noreferrer"
+                           className={`w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 transition-all ${forceLightMode ? 'bg-black/10 border border-black/10' : 'bg-white/10 border border-white/10'}`}
+                           style={{ color: resolvedTextColor }}
+                        >
+                           <MessageCircle className="w-4 h-4" />
+                        </a>
+                     )}
+                     {contacts.linkedin && (
+                        <a
+                           href={contacts.linkedin}
+                           target="_blank"
+                           rel="noreferrer"
+                           className={`w-10 h-10 rounded-full flex items-center justify-center hover:scale-105 transition-all ${forceLightMode ? 'bg-black/10 border border-black/10' : 'bg-white/10 border border-white/10'}`}
+                           style={{ color: resolvedTextColor }}
+                        >
+                           <Linkedin className="w-4 h-4" />
+                        </a>
+                     )}
+                  </div>
+               </div>
+            )}
+
                <div className="w-full space-y-3">
                   {links.filter(l => l.active).map(link => (
                      <div key={link.id} className={`${btnClasses} group transform-gpu`}>
                         <div className="flex items-center justify-center gap-3 w-full">
-                           {link.thumbnail_url ? (
-                              <div className="shrink-0 w-6 h-6 rounded-md overflow-hidden flex items-center justify-center">
-                                 <img src={link.thumbnail_url} alt="" className="w-full h-full object-cover" />
-                              </div>
-                           ) : getSocialIcon(link.url) ? (
-                              <div className="shrink-0 flex items-center justify-center">
-                                 {getSocialIcon(link.url)}
-                              </div>
-                           ) : null}
+                           {link.show_icon !== false && (
+                              link.thumbnail_url ? (
+                                 <div className="shrink-0 w-6 h-6 rounded-md overflow-hidden flex items-center justify-center">
+                                    <img src={link.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                                 </div>
+                              ) : getSocialIcon(link.url) ? (
+                                 <div className="shrink-0 flex items-center justify-center">
+                                    {getSocialIcon(link.url)}
+                                 </div>
+                              ) : null
+                           )}
                            <span className="truncate max-w-[180px]">{link.title}</span>
                         </div>
                      </div>
@@ -379,9 +450,6 @@ const SortableLinkItem: React.FC<{
                      </div>
                   </div>
                <div className="flex items-center gap-2 shrink-0">
-                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-border bg-surfaceHighlight text-secondary">
-                        <Layers className="w-3 h-3" /> Link
-                     </span>
                      <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" checked={link.active} onChange={() => onUpdate(link.id, { active: !link.active })} className="sr-only peer" />
                         <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
@@ -409,6 +477,17 @@ const SortableLinkItem: React.FC<{
                            </button>
                         )}
                      </div>
+
+                     {/* Icon toggle */}
+                     <button
+                        onClick={() => onUpdate(link.id, { show_icon: !(link.show_icon !== false) })}
+                        className={`p-2 rounded-lg border text-[11px] font-semibold transition-colors ${link.show_icon !== false
+                           ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15'
+                           : 'border-border bg-surfaceHighlight text-secondary hover:text-primary hover:border-primary/40'}`}
+                        title={link.show_icon !== false ? "Hide icon/thumbnail" : "Show icon/thumbnail"}
+                     >
+                        {link.show_icon !== false ? 'Icon On' : 'Icon Off'}
+                     </button>
 
                      {/* Clicks Badge */}
                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surfaceHighlight border border-border text-[10px] font-bold text-secondary uppercase tracking-wider group-hover:bg-primary/5 group-hover:text-primary group-hover:border-primary/20 transition-all">
@@ -448,28 +527,64 @@ const LinksView: React.FC<{
    links: LinkItem[],
    onAdd: () => void,
    onDelete: (id: string) => void,
-   onUpdate: (id: string, updates: Partial<LinkItem>) => void
-}> = ({ links, onAdd, onDelete, onUpdate }) => {
+   onUpdate: (id: string, updates: Partial<LinkItem>) => void,
+   onOpenContacts: () => void,
+   isDarkTheme: boolean,
+   onOpenProfile: () => void,
+   handleShareProfile: () => void
+}> = ({ links, onAdd, onDelete, onUpdate, onOpenContacts, isDarkTheme, onOpenProfile, handleShareProfile }) => {
 
    return (
       <div className="max-w-2xl mx-auto w-full animate-slide-up pb-24">
-         <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-2">Links</h2>
-            <p className="text-secondary">Manage what shows up on your profile.</p>
+         <div className="mb-8 space-y-3">
+            <div>
+               <h2 className="text-2xl font-bold mb-2">Links</h2>
+               <p className="text-secondary">Manage what shows up on your profile.</p>
+            </div>
+
+            {/* Mobile quick actions */}
+            <div className="flex items-center gap-2 sm:hidden">
+               <button
+                  onClick={onOpenProfile}
+                  className="flex-1 h-11 rounded-xl border border-border bg-surfaceHighlight text-xs font-semibold text-primary/90 flex items-center justify-center gap-2"
+               >
+                  <ExternalLink className="w-4 h-4" /> Open
+               </button>
+               <button
+                  onClick={handleShareProfile}
+                  className="flex-1 h-11 rounded-xl border border-border bg-surfaceHighlight text-xs font-semibold text-primary/90 flex items-center justify-center gap-2"
+               >
+                  <Share2 className="w-4 h-4" /> Share
+               </button>
+            </div>
          </div>
 
-         <div className="mb-8">
+         <div className="mb-6 flex flex-col gap-3">
+            {/*
+              Add Link button colors invert the app theme:
+              - Light theme -> black button
+              - Dark theme  -> white button
+            */}
             <button
                onClick={onAdd}
-               className="relative w-full h-14 rounded-2xl font-bold tracking-wide transition-all duration-300
-               bg-zinc-900 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_4px_12px_rgba(0,0,0,0.5)] hover:shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_10px_30px_rgba(0,0,0,0.7)] hover:-translate-y-0.5
-               dark:bg-white dark:text-black dark:shadow-[0_0_20px_rgba(255,255,255,0.3)] dark:hover:shadow-[0_0_35px_rgba(255,255,255,0.5)]
-               flex items-center justify-center gap-2 group overflow-hidden"
+               className={`relative w-full h-14 rounded-2xl font-bold tracking-wide transition-all duration-300
+               flex items-center justify-center gap-2 group overflow-hidden
+               ${isDarkTheme
+                     ? 'bg-white text-black shadow-[0_12px_30px_rgba(0,0,0,0.24)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.32)]'
+                     : 'bg-black text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.36)]'}`}
             >
-               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:animate-shimmer z-10 pointer-events-none"></div>
-               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300 relative z-20" />
-               <span className="relative z-20">ADD NEW LINK</span>
+               <div className={`absolute inset-0 ${isDarkTheme ? 'bg-gradient-to-r from-transparent via-black/20 to-transparent' : 'bg-gradient-to-r from-transparent via-white/30 to-transparent'} translate-x-[-120%] group-hover:animate-shimmer pointer-events-none`}></div>
+               <Plus className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90 relative z-10" />
+               <span className="relative z-10">ADD NEW LINK</span>
             </button>
+
+            <Button
+               variant="secondary"
+               className="h-14 px-4 flex items-center gap-2 border border-border justify-center rounded-2xl bg-surface text-primary text-base"
+               onClick={onOpenContacts}
+            >
+               <Phone className="w-4 h-4" /> Contact info
+            </Button>
          </div>
 
          <div className="space-y-4">
@@ -933,10 +1048,23 @@ const SettingsView: React.FC<{
 // -- Main Dashboard Component --
 
 const Dashboard: React.FC = () => {
-   const [currentView, setCurrentView] = useState<ViewState>('links');
+   const [currentView, setCurrentView] = useState<ViewState>(() => {
+      if (typeof window === 'undefined') return 'links';
+      const stored = localStorage.getItem('lynkr-dashboard-view');
+      return stored === 'links' || stored === 'appearance' || stored === 'analytics' || stored === 'settings' ? stored : 'links';
+   });
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
    const [links, setLinks] = useState<LinkItem[]>([]);
    const [loading, setLoading] = useState(true);
+   const [contactInfo, setContactInfo] = useState<ContactInfo>({});
+   const [contactDrawerOpen, setContactDrawerOpen] = useState(false);
+   const [contactDraft, setContactDraft] = useState<ContactInfo>({});
+   const [contactToggles, setContactToggles] = useState<ContactToggles>({
+      phone: false,
+      email: false,
+      whatsapp: false,
+      linkedin: false
+   });
    const { theme, toggleTheme } = useTheme();
    const { signOut, user } = useAuth();
    const navigate = useNavigate();
@@ -1066,7 +1194,8 @@ const Dashboard: React.FC = () => {
                   active: l.active,
                   clicks_count: l.clicks_count || 0,
                   position: l.position || 0,
-                  thumbnail_url: l.thumbnail_url
+                  thumbnail_url: l.thumbnail_url,
+                  show_icon: (l as any).show_icon !== false
                })));
             }
          } catch (error) {
@@ -1079,6 +1208,24 @@ const Dashboard: React.FC = () => {
 
       loadData();
    }, [user]);
+
+   useEffect(() => {
+      if (contactDrawerOpen) {
+         setContactDraft(contactInfo);
+         setContactToggles({
+            phone: Boolean(contactInfo.phone),
+            email: Boolean(contactInfo.email),
+            whatsapp: Boolean(contactInfo.whatsapp),
+            linkedin: Boolean(contactInfo.linkedin)
+         });
+      }
+   }, [contactDrawerOpen, contactInfo]);
+
+   useEffect(() => {
+      if (typeof window !== 'undefined') {
+         localStorage.setItem('lynkr-dashboard-view', currentView);
+      }
+   }, [currentView]);
 
    const handleLogout = async () => {
       await signOut();
@@ -1100,7 +1247,8 @@ const Dashboard: React.FC = () => {
          active: true,
          clicks_count: 0,
          position: newPosition,
-         thumbnail_url: undefined
+         thumbnail_url: undefined,
+         show_icon: true
       };
       setLinks([...links, optimisticLink]); // Add to bottom to match newPosition logic
 
@@ -1173,7 +1321,14 @@ const Dashboard: React.FC = () => {
 
       debounceRef.current = setTimeout(async () => {
          try {
-            await updateLinkInDb(id, updates as Partial<SupabaseLink>);
+            const supabaseUpdates: Partial<SupabaseLink> = { ...(updates as Partial<SupabaseLink>) };
+            // Strip client-only fields
+            delete (supabaseUpdates as any).show_icon;
+            delete (supabaseUpdates as any).thumbnailFile;
+
+            if (Object.keys(supabaseUpdates).length === 0) return;
+
+            await updateLinkInDb(id, supabaseUpdates);
          } catch (error) {
             toast.error('Failed to save changes');
          }
@@ -1323,6 +1478,35 @@ const Dashboard: React.FC = () => {
       window.open(`/${getSanitizedUsername()}`, '_blank');
    };
 
+   // Contact info handlers (UI-only)
+   const openContactDrawer = () => {
+      setContactDraft(contactInfo);
+      setContactDrawerOpen(true);
+   };
+
+   const handleContactToggle = (field: keyof ContactToggles, enabled: boolean) => {
+      setContactToggles(prev => ({ ...prev, [field]: enabled }));
+      if (!enabled) {
+         setContactDraft(prev => ({ ...prev, [field]: '' }));
+      }
+   };
+
+   const handleContactInputChange = (field: keyof ContactInfo, value: string) => {
+      setContactDraft(prev => ({ ...prev, [field]: value }));
+   };
+
+   const handleSaveContacts = () => {
+      const next: ContactInfo = {};
+      (['phone', 'email', 'whatsapp', 'linkedin'] as (keyof ContactInfo)[]).forEach(key => {
+         if (contactToggles[key as keyof ContactToggles] && contactDraft[key]) {
+            next[key] = contactDraft[key]?.trim();
+         }
+      });
+      setContactInfo(next);
+      setContactDrawerOpen(false);
+      toast.success('Contact info updated');
+   };
+
    const renderView = () => {
       switch (currentView) {
          case 'links':
@@ -1337,6 +1521,10 @@ const Dashboard: React.FC = () => {
                      onAdd={handleCreateLink}
                      onDelete={handleDeleteClick}
                      onUpdate={handleUpdateLink}
+                     onOpenContacts={openContactDrawer}
+                     isDarkTheme={theme === 'dark'}
+                     onOpenProfile={handleOpenProfile}
+                     handleShareProfile={handleShareProfile}
                   />
                </DndContext>
             );
@@ -1361,6 +1549,10 @@ const Dashboard: React.FC = () => {
                      onAdd={handleCreateLink}
                      onDelete={handleDeleteClick}
                      onUpdate={handleUpdateLink}
+                     onOpenContacts={openContactDrawer}
+                     isDarkTheme={theme === 'dark'}
+                     onOpenProfile={handleOpenProfile}
+                     handleShareProfile={handleShareProfile}
                   />
                </DndContext>
             );
@@ -1396,20 +1588,30 @@ const Dashboard: React.FC = () => {
             </nav>
 
             <div className="mt-auto pt-6 border-t border-border">
-               <div onClick={handleLogout} className="flex items-center gap-3 px-2 group cursor-pointer hover:bg-surfaceHighlight p-2 rounded-xl transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                     {profileConfig.avatar && !profileConfig.avatar.includes('unsplash') ? (
-                        <img src={profileConfig.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                     ) : (
-                        profileConfig.username ? profileConfig.username.charAt(0).toUpperCase() : 'U'
-                     )}
+               {loading ? (
+                  <div className="flex items-center gap-3 px-2 p-2 rounded-xl">
+                     <div className="w-10 h-10 rounded-full bg-surfaceHighlight animate-pulse" />
+                     <div className="flex-1 space-y-1">
+                        <div className="h-3 w-24 bg-surfaceHighlight rounded animate-pulse" />
+                        <div className="h-3 w-16 bg-surfaceHighlight rounded animate-pulse" />
+                     </div>
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                     <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{profileConfig.username || 'User'}</p>
-                     <p className="text-xs text-secondary truncate">{profileConfig.plan ? `${profileConfig.plan.charAt(0).toUpperCase()}${profileConfig.plan.slice(1)} Plan` : 'Plan'}</p>
+               ) : (
+                  <div onClick={handleLogout} className="flex items-center gap-3 px-2 group cursor-pointer hover:bg-surfaceHighlight p-2 rounded-xl transition-colors">
+                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                        {profileConfig.avatar && !profileConfig.avatar.includes('unsplash') ? (
+                           <img src={profileConfig.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                           profileConfig.username ? profileConfig.username.charAt(0).toUpperCase() : 'U'
+                        )}
+                     </div>
+                     <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{profileConfig.username || 'User'}</p>
+                        <p className="text-xs text-secondary truncate">{profileConfig.plan ? `${profileConfig.plan.charAt(0).toUpperCase()}${profileConfig.plan.slice(1)} Plan` : 'Plan'}</p>
+                     </div>
+                     <LogOut className="w-4 h-4 text-red-500" />
                   </div>
-                  <LogOut className="w-4 h-4 text-red-500" />
-               </div>
+               )}
             </div>
          </aside>
 
@@ -1427,31 +1629,41 @@ const Dashboard: React.FC = () => {
                      <SidebarItem icon={Palette} label="Appearance" active={currentView === 'appearance'} onClick={() => handleNav('appearance')} />
                      <SidebarItem icon={BarChart3} label="Analytics" active={currentView === 'analytics'} onClick={() => handleNav('analytics')} />
                      <SidebarItem icon={Settings} label="Settings" active={currentView === 'settings'} onClick={() => handleNav('settings')} />
-                  </nav>
-                  <div className="border-t border-border pt-4 mt-auto">
-                     <div className="flex items-center justify-between px-2 mb-4">
-                        <span className="text-sm font-medium text-secondary">Theme</span>
-                        <button
+                 </nav>
+                 <div className="border-t border-border pt-4 mt-auto">
+                    <div className="flex items-center justify-between px-2 mb-4">
+                       <span className="text-sm font-medium text-secondary">Theme</span>
+                       <button
                            onClick={toggleTheme}
                            className="p-2 rounded-lg bg-surfaceHighlight text-primary"
                         >
                            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                         </button>
-                     </div>
-                     <div onClick={handleLogout} className="flex items-center gap-3 px-2 cursor-pointer group hover:bg-surfaceHighlight/50 p-2 rounded-xl transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
-                           {profileConfig.avatar && !profileConfig.avatar.includes('unsplash') ? (
-                              <img src={profileConfig.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                           ) : (
-                              profileConfig.username ? profileConfig.username.charAt(0).toUpperCase() : 'U'
-                           )}
+                    </div>
+                     {loading ? (
+                        <div className="flex items-center gap-3 px-2 p-2 rounded-xl">
+                           <div className="w-10 h-10 rounded-full bg-surfaceHighlight animate-pulse" />
+                           <div className="flex-1 space-y-1">
+                              <div className="h-3 w-24 bg-surfaceHighlight rounded animate-pulse" />
+                              <div className="h-3 w-16 bg-surfaceHighlight rounded animate-pulse" />
+                           </div>
                         </div>
-                        <div className="flex-1 overflow-hidden">
-                           <p className="text-sm font-medium truncate">{profileConfig.username || 'User'}</p>
-                           <p className="text-xs text-secondary truncate">{profileConfig.plan ? `${profileConfig.plan.charAt(0).toUpperCase()}${profileConfig.plan.slice(1)} Plan` : 'Plan'}</p>
+                     ) : (
+                        <div onClick={handleLogout} className="flex items-center gap-3 px-2 cursor-pointer group hover:bg-surfaceHighlight/50 p-2 rounded-xl transition-colors">
+                           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                              {profileConfig.avatar && !profileConfig.avatar.includes('unsplash') ? (
+                                 <img src={profileConfig.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                 profileConfig.username ? profileConfig.username.charAt(0).toUpperCase() : 'U'
+                              )}
+                           </div>
+                           <div className="flex-1 overflow-hidden">
+                              <p className="text-sm font-medium truncate">{profileConfig.username || 'User'}</p>
+                              <p className="text-xs text-secondary truncate">{profileConfig.plan ? `${profileConfig.plan.charAt(0).toUpperCase()}${profileConfig.plan.slice(1)} Plan` : 'Plan'}</p>
+                           </div>
+                           <LogOut className="w-4 h-4 text-red-500" />
                         </div>
-                        <LogOut className="w-4 h-4 text-red-500" />
-                     </div>
+                     )}
                   </div>
                </div>
             </div>
@@ -1499,7 +1711,7 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   <div className="scale-[0.85] origin-center transition-all duration-300 hover:scale-[0.87] mt-8">
-                     <PhonePreview links={links} config={profileConfig} />
+                     <PhonePreview links={links} config={profileConfig} contacts={contactInfo} />
                   </div>
                </aside>
             )}
@@ -1511,7 +1723,140 @@ const Dashboard: React.FC = () => {
           }
         `}</style>
 
+            {contactDrawerOpen && (
+               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                  <div className="bg-surface border border-border rounded-2xl w-full max-w-lg p-6 relative shadow-2xl animate-slide-up">
+                     <button
+                        onClick={() => setContactDrawerOpen(false)}
+                        className="absolute top-4 right-4 text-secondary hover:text-primary"
+                        aria-label="Close"
+                     >
+                        <X className="w-5 h-5" />
+                     </button>
+                     <h3 className="text-xl font-semibold mb-1">Contact information</h3>
+                     <p className="text-secondary mb-6 text-sm">Add quick contact buttons that appear under your bio.</p>
 
+                     <div className="space-y-4">
+                        <div>
+                           <div className="flex items-center justify-between mb-1.5">
+                              <label className="text-xs font-semibold text-secondary uppercase">Phone</label>
+                              <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                                 <span>{contactToggles.phone ? 'On' : 'Off'}</span>
+                                 <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={contactToggles.phone}
+                                    onChange={(e) => handleContactToggle('phone', e.target.checked)}
+                                 />
+                                 <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.phone ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
+                                    <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.phone ? 'translate-x-5' : ''}`}></div>
+                                 </div>
+                              </label>
+                           </div>
+                           <input
+                              type="tel"
+                              value={contactDraft.phone || ''}
+                              onChange={(e) => handleContactInputChange('phone', e.target.value)}
+                              disabled={!contactToggles.phone}
+                              className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              placeholder="+1 555 123 4567"
+                           />
+                        </div>
+                        <div>
+                           <div className="flex items-center justify-between mb-1.5">
+                              <label className="text-xs font-semibold text-secondary uppercase">Email</label>
+                              <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                                 <span>{contactToggles.email ? 'On' : 'Off'}</span>
+                                 <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={contactToggles.email}
+                                    onChange={(e) => handleContactToggle('email', e.target.checked)}
+                                 />
+                                 <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.email ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
+                                    <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.email ? 'translate-x-5' : ''}`}></div>
+                                 </div>
+                              </label>
+                           </div>
+                           <input
+                              type="email"
+                              value={contactDraft.email || ''}
+                              onChange={(e) => handleContactInputChange('email', e.target.value)}
+                              disabled={!contactToggles.email}
+                              className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              placeholder="you@example.com"
+                           />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                 <label className="text-xs font-semibold text-secondary uppercase">WhatsApp</label>
+                                 <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                                    <span>{contactToggles.whatsapp ? 'On' : 'Off'}</span>
+                                    <input
+                                       type="checkbox"
+                                       className="sr-only"
+                                       checked={contactToggles.whatsapp}
+                                       onChange={(e) => handleContactToggle('whatsapp', e.target.checked)}
+                                    />
+                                    <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.whatsapp ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
+                                       <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.whatsapp ? 'translate-x-5' : ''}`}></div>
+                                    </div>
+                                 </label>
+                              </div>
+                              <input
+                                 type="text"
+                                 value={contactDraft.whatsapp || ''}
+                                 onChange={(e) => handleContactInputChange('whatsapp', e.target.value)}
+                                 disabled={!contactToggles.whatsapp}
+                                 className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                 placeholder="15551234567"
+                              />
+                           </div>
+                           <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                 <label className="text-xs font-semibold text-secondary uppercase">LinkedIn</label>
+                                 <label className="inline-flex items-center gap-2 text-xs text-secondary">
+                                    <span>{contactToggles.linkedin ? 'On' : 'Off'}</span>
+                                    <input
+                                       type="checkbox"
+                                       className="sr-only"
+                                       checked={contactToggles.linkedin}
+                                       onChange={(e) => handleContactToggle('linkedin', e.target.checked)}
+                                    />
+                                    <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.linkedin ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
+                                       <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.linkedin ? 'translate-x-5' : ''}`}></div>
+                                    </div>
+                                 </label>
+                              </div>
+                              <input
+                                 type="url"
+                                 value={contactDraft.linkedin || ''}
+                                 onChange={(e) => handleContactInputChange('linkedin', e.target.value)}
+                                 disabled={!contactToggles.linkedin}
+                                 className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                 placeholder="https://linkedin.com/in/username"
+                              />
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="mt-6 flex items-center justify-between gap-3">
+                        <Button
+                           variant="ghost"
+                           className="text-secondary hover:text-primary"
+                           onClick={() => { setContactDraft({}); setContactInfo({}); setContactToggles({ phone: false, email: false, whatsapp: false, linkedin: false }); setContactDrawerOpen(false); }}
+                        >
+                           Clear all
+                        </Button>
+                        <div className="flex gap-3">
+                           <Button variant="secondary" onClick={() => setContactDrawerOpen(false)}>Cancel</Button>
+                           <Button onClick={handleSaveContacts}>Save</Button>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
 
             <ConfirmationModal
                isOpen={deleteModalOpen}

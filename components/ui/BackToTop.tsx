@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
-import { smoothScroll } from '../../utils/smoothScroll';
 
 const BackToTop: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -19,10 +18,26 @@ const BackToTop: React.FC = () => {
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
+    const start = window.scrollY;
+    const duration = 600;
+    let startTime: number | null = null;
+
+    const easeInOutQuad = (t: number, b: number, c: number, d: number) => {
+      t /= d / 2;
+      if (t < 1) return c / 2 * t * t + b;
+      t--;
+      return -c / 2 * (t * (t - 2) - 1) + b;
+    };
+
+    const animate = (currentTime: number) => {
+      if (startTime === null) startTime = currentTime;
+      const timeElapsed = currentTime - startTime;
+      const next = easeInOutQuad(timeElapsed, start, -start, duration);
+      window.scrollTo(0, next);
+      if (timeElapsed < duration) requestAnimationFrame(animate);
+    };
+
+    requestAnimationFrame(animate);
   };
 
   return (

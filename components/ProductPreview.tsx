@@ -6,7 +6,15 @@ import { TiltCard } from './ui/TiltCard';
 const ProductPreview: React.FC = () => {
   return (
     <div className="py-24 bg-surface relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6">
+      {/* Subtle grid + glow backdrop */}
+      <div className="pointer-events-none absolute inset-0 opacity-70">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18)_0,_transparent_48%),radial-gradient(circle_at_28%_42%,_rgba(236,72,153,0.16)_0,_transparent_38%)] blur-2xl dark:opacity-70 opacity-80"></div>
+        <div className="absolute inset-0 bg-[length:32px_32px] bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] opacity-30 dark:opacity-55"></div>
+        <div className="absolute inset-0 bg-[length:32px_32px] bg-[linear-gradient(rgba(17,24,39,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(17,24,39,0.14)_1px,transparent_1px)] opacity-45 dark:opacity-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-surface/55 to-surface pointer-events-none"></div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 relative">
         <div className="mb-16 md:text-center max-w-3xl mx-auto">
           <Reveal>
             <h2 className="text-3xl md:text-5xl font-bold mb-6 text-primary">Designed for flow.</h2>

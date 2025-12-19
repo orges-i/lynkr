@@ -35,7 +35,7 @@ const HowItWorks: React.FC = () => {
         }
       `}</style>
 
-      <Reveal className="mb-20 text-center">
+      <Reveal className="mb-20 text-left md:text-center">
          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-primary">Effortless setup.</h2>
          <p className="text-secondary text-lg">From zero to launch in under 5 minutes.</p>
       </Reveal>
