@@ -10,6 +10,7 @@ export interface Plan {
   features: string[];
   cta: string;
   popular: boolean;
+  position?: number;
 }
 
 interface PricingContextType {
@@ -28,16 +29,18 @@ const initialPlans: Plan[] = [
     description: 'Perfect for getting started.',
     features: ['Unlimited links', 'Basic analytics', 'Standard themes', 'LYNKR branding'],
     cta: 'Get Started',
-    popular: false
+    popular: false,
+    position: 0
   },
   {
-    name: 'Pro',
-    price: '$12',
+    name: 'Plus',
+    price: '$16',
     period: '/month',
     description: 'For growing creators and pros.',
     features: ['Everything in Free', 'Custom branding', 'Advanced analytics', 'Email collection', 'Priority support'],
     cta: 'Start Free Trial',
-    popular: true
+    popular: true,
+    position: 1
   },
   {
     name: 'Agency',
@@ -46,7 +49,8 @@ const initialPlans: Plan[] = [
     description: 'Manage multiple accounts.',
     features: ['Everything in Pro', 'Unlimited pages', 'Team members', 'API Access', 'Dedicated manager'],
     cta: 'Contact Sales',
-    popular: false
+    popular: false,
+    position: 2
   }
 ];
 
@@ -56,7 +60,18 @@ export const PricingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshPlans = useCallback(async () => {
     const remotePlans = await fetchPricingPlans();
     if (remotePlans.length > 0) {
-      setPlans(remotePlans);
+      // Ensure the popular plan stays in the middle visually
+      const cloned = remotePlans.map((p) => ({ ...p }));
+      const popularIndex = cloned.findIndex(p => p.popular);
+      if (popularIndex >= 0) {
+        const popularPlan = { ...cloned[popularIndex], position: 1 };
+        const others = cloned.filter((_, idx) => idx !== popularIndex);
+        const positionedOthers = others.map((p, idx) => ({ ...p, position: idx === 0 ? 0 : 2 }));
+        const arranged = [...positionedOthers, popularPlan].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+        setPlans(arranged);
+      } else {
+        setPlans(cloned.sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
+      }
     } else {
       setPlans(initialPlans);
     }
@@ -69,16 +84,17 @@ export const PricingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updatePlan = async (index: number, updatedPlan: Plan) => {
     const previousPlans = [...plans];
     const existingId = previousPlans[index]?.id;
+    const existingPosition = previousPlans[index]?.position ?? index;
 
     // Optimistic update
     setPlans((prev) => {
       const next = [...prev];
-      next[index] = updatedPlan;
+      next[index] = { ...updatedPlan, position: existingPosition };
       return next;
     });
 
     try {
-      await upsertPricingPlan({ ...updatedPlan, id: existingId });
+      await upsertPricingPlan({ ...updatedPlan, id: existingId, position: existingPosition });
       await refreshPlans();
     } catch (e) {
       // Revert to previous state on failure

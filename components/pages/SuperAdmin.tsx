@@ -33,6 +33,7 @@ import {
    AlertCircle,
    CheckCircle2,
    PieChart,
+   Eye,
    Home,
    X,
    FileJson,
@@ -59,7 +60,12 @@ import {
    createTicket,
    updateTicket,
    Ticket,
-   fetchLinksForAdmin
+   fetchLinksForAdmin,
+   updateUserPlan,
+   setUserStatus,
+   deleteUserWithData,
+    fetchUserDetails,
+    fetchAdminMetricDeltas
 } from '../../lib/supabaseHelpers';
 
 // -- Types --
@@ -99,6 +105,10 @@ interface AdminMetrics {
    activeSubs: number;
    totalUsers: number;
    pageViews: number;
+   revenueChange?: string;
+   subsChange?: string;
+   usersChange?: string;
+   viewsChange?: string;
 }
 
 const formatRelativeTime = (isoDate: string) => {
@@ -137,7 +147,7 @@ const mockTicketsData: BugTicket[] = [
 // -- Sub-Components --
 
 const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityItem[]; loading: boolean; onExport?: () => void; }> = ({ metrics, activity, loading, onExport }) => {
-   const safeMetrics: AdminMetrics = metrics || { revenue: '$0', activeSubs: 0, totalUsers: 0, pageViews: 0 };
+   const safeMetrics: AdminMetrics = metrics || { revenue: '$0', activeSubs: 0, totalUsers: 0, pageViews: 0, revenueChange: '+0%', subsChange: '+0%', usersChange: '+0%', viewsChange: '+0%' };
    return (
       <div className="max-w-7xl mx-auto animate-fade-in pb-12">
          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
@@ -157,8 +167,8 @@ const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityI
             {[
                {
                   label: 'Total Revenue',
-                  value: loading ? '—' : safeMetrics.revenue,
-                  change: '+0%',
+                  value: loading ? '-' : safeMetrics.revenue,
+                  change: safeMetrics.revenueChange || '+0%',
                   icon: Banknote,
                   gradient: 'from-emerald-500/20 to-green-600/20',
                   textCol: 'text-emerald-500',
@@ -166,8 +176,8 @@ const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityI
                },
                {
                   label: 'Active Subs',
-                  value: loading ? '—' : safeMetrics.activeSubs.toLocaleString(),
-                  change: '+0%',
+                  value: loading ? '-' : safeMetrics.activeSubs.toLocaleString(),
+                  change: safeMetrics.subsChange || '+0%',
                   icon: Zap,
                   gradient: 'from-amber-500/20 to-orange-600/20',
                   textCol: 'text-amber-500',
@@ -175,8 +185,8 @@ const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityI
                },
                {
                   label: 'Total Users',
-                  value: loading ? '—' : safeMetrics.totalUsers.toLocaleString(),
-                  change: '+0%',
+                  value: loading ? '-' : safeMetrics.totalUsers.toLocaleString(),
+                  change: safeMetrics.usersChange || '+0%',
                   icon: Users,
                   gradient: 'from-blue-500/20 to-indigo-600/20',
                   textCol: 'text-blue-500',
@@ -184,8 +194,8 @@ const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityI
                },
                {
                   label: 'Page Views',
-                  value: loading ? '—' : safeMetrics.pageViews.toLocaleString(),
-                  change: '+0%',
+                  value: loading ? '-' : safeMetrics.pageViews.toLocaleString(),
+                  change: safeMetrics.viewsChange || '+0%',
                   icon: Activity,
                   gradient: 'from-purple-500/20 to-pink-600/20',
                   textCol: 'text-purple-500',
@@ -219,7 +229,10 @@ const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityI
             {/* Main Chart */}
             <div className="lg:col-span-2 bg-surface border border-border rounded-3xl p-8 shadow-sm relative overflow-hidden">
                <div className="flex justify-between items-center mb-8 relative z-10">
-                  <h3 className="text-xl font-bold">Revenue Growth</h3>
+                  <div className="flex items-center gap-3">
+                     <h3 className="text-xl font-bold">Revenue Growth</h3>
+                     <span className="text-[10px] uppercase font-bold bg-surfaceHighlight px-2 py-1 rounded-full border border-border text-secondary">Sample data</span>
+                  </div>
                   <select className="bg-surfaceHighlight border border-border rounded-lg text-xs px-3 py-1.5 outline-none text-secondary">
                      <option>This Year</option>
                      <option>Last Year</option>
@@ -262,6 +275,7 @@ const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityI
                   <div className="w-full h-px bg-border border-t border-dashed"></div>
                   <div className="w-full h-px bg-border border-t border-dashed"></div>
                </div>
+
             </div>
 
             {/* Recent Activity */}
@@ -296,22 +310,32 @@ const AnalyticsDashboard: React.FC<{ metrics?: AdminMetrics; activity: ActivityI
    );
 };
 
-const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ users, loading }) => {
+const UserManagement: React.FC<{
+   users: AdminUser[];
+   loading: boolean;
+   onToggleStatus: (id: string, next: 'Active' | 'Inactive') => Promise<void>;
+   onDeleteUser: (id: string) => Promise<void>;
+   onChangePlan: (id: string, plan: 'Free' | 'Pro' | 'Agency') => Promise<void>;
+   onViewUser: (id: string) => void;
+}> = ({ users, loading, onToggleStatus, onDeleteUser, onChangePlan, onViewUser }) => {
    const [localUsers, setLocalUsers] = useState<AdminUser[]>(users);
    const [searchTerm, setSearchTerm] = useState('');
+   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
 
    useEffect(() => {
       setLocalUsers(users);
    }, [users]);
 
-   const toggleStatus = (id: string) => {
-      setLocalUsers(prev => prev.map(u => u.id === id ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' } : u));
+   const toggleStatus = async (id: string) => {
+      const current = localUsers.find(u => u.id === id)?.status || 'Inactive';
+      const next = current === 'Active' ? 'Inactive' : 'Active';
+      setLocalUsers(prev => prev.map(u => u.id === id ? { ...u, status: next } : u));
+      await onToggleStatus(id, next);
    };
 
-   const deleteUser = (id: string) => {
-      if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-         setLocalUsers(prev => prev.filter(u => u.id !== id));
-      }
+   const deleteUser = async (id: string) => {
+      const target = localUsers.find(u => u.id === id);
+      if (target) setConfirmDelete({ id, name: target.name });
    };
 
    const exportCSV = () => {
@@ -334,6 +358,7 @@ const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ u
    const filteredUsers = localUsers.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
    return (
+      <>
       <div className="max-w-7xl mx-auto animate-fade-in pb-12">
          <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
             <div>
@@ -399,9 +424,15 @@ const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ u
                            </td>
                            <td className="px-6 py-5">
                               <div className="flex items-center gap-2">
-                                 {user.plan === 'Agency' && <Gem className="w-3.5 h-3.5 text-purple-500" />}
-                                 {user.plan === 'Pro' && <Zap className="w-3.5 h-3.5 text-indigo-500" />}
-                                 <span className="text-sm font-medium">{user.plan}</span>
+                                 <select
+                                    value={user.plan}
+                                    onChange={(e) => onChangePlan(user.id, e.target.value as 'Free' | 'Pro' | 'Agency')}
+                                    className="bg-surfaceHighlight border border-border rounded-lg text-xs px-3 py-1.5 outline-none text-primary"
+                                 >
+                                    <option>Free</option>
+                                    <option>Pro</option>
+                                    <option>Agency</option>
+                                 </select>
                               </div>
                            </td>
                            <td className="px-6 py-5 text-sm text-secondary font-mono">
@@ -409,6 +440,13 @@ const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ u
                            </td>
                            <td className="px-8 py-5 text-right">
                               <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                 <button
+                                    onClick={() => onViewUser(user.id)}
+                                    className="p-2 rounded-lg hover:bg-surfaceHighlight text-secondary hover:text-indigo-500 transition-colors border border-transparent hover:border-border"
+                                    title="View details"
+                                 >
+                                    <Eye className="w-4 h-4" />
+                                 </button>
                                  <button
                                     onClick={() => toggleStatus(user.id)}
                                     className="p-2 rounded-lg hover:bg-surfaceHighlight text-secondary hover:text-orange-500 transition-colors border border-transparent hover:border-border"
@@ -445,10 +483,16 @@ const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ u
                               <div className="text-xs text-secondary">{user.email}</div>
                            </div>
                         </div>
-                        <div className="flex items-center gap-1 bg-surfaceHighlight px-2 py-1 rounded-lg border border-border">
-                           {user.plan === 'Agency' && <Gem className="w-3 h-3 text-purple-500" />}
-                           {user.plan === 'Pro' && <Zap className="w-3 h-3 text-indigo-500" />}
-                           <span className="text-xs font-bold">{user.plan}</span>
+                     <div className="flex items-center gap-1 bg-surfaceHighlight px-2 py-1 rounded-lg border border-border">
+                           <select
+                              value={user.plan}
+                              onChange={(e) => onChangePlan(user.id, e.target.value as 'Free' | 'Pro' | 'Agency')}
+                              className="bg-transparent text-xs font-bold outline-none"
+                           >
+                              <option>Free</option>
+                              <option>Pro</option>
+                              <option>Agency</option>
+                           </select>
                         </div>
                      </div>
 
@@ -462,6 +506,14 @@ const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ u
                      </div>
 
                      <div className="flex gap-2 mt-2">
+                        <Button
+                           variant="outline"
+                           size="sm"
+                           className="flex-1 text-xs"
+                           onClick={() => onViewUser(user.id)}
+                        >
+                           View
+                        </Button>
                         <Button
                            variant="secondary"
                            size="sm"
@@ -482,6 +534,33 @@ const UserManagement: React.FC<{ users: AdminUser[]; loading: boolean; }> = ({ u
             </div>
          </div>
       </div>
+      {confirmDelete && (
+         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-surface border border-border rounded-3xl w-full max-w-md p-6 relative">
+               <button className="absolute top-3 right-3 text-secondary hover:text-primary" onClick={() => setConfirmDelete(null)}>
+                  <X className="w-5 h-5" />
+               </button>
+               <h3 className="text-lg font-bold mb-2">Delete User</h3>
+               <p className="text-sm text-secondary mb-4">Are you sure you want to delete <span className="font-semibold text-primary">{confirmDelete.name}</span>? This action cannot be undone.</p>
+               <div className="flex justify-end gap-3">
+                  <Button variant="outline" size="sm" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+                  <Button
+                     variant="secondary"
+                     size="sm"
+                     className="bg-red-500 text-white border-red-500 hover:bg-red-600"
+                     onClick={async () => {
+                        setLocalUsers(prev => prev.filter(u => u.id !== confirmDelete.id));
+                        await onDeleteUser(confirmDelete.id);
+                        setConfirmDelete(null);
+                     }}
+                  >
+                     Delete
+                  </Button>
+               </div>
+            </div>
+         </div>
+      )}
+      </>
    );
 };
 
@@ -1155,12 +1234,24 @@ const SuperAdmin: React.FC = () => {
    const { user } = useAuth();
    const navigate = useNavigate();
    const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
-   const [adminMetrics, setAdminMetrics] = useState<AdminMetrics>({ revenue: '$0', activeSubs: 0, totalUsers: 0, pageViews: 0 });
+   const [adminMetrics, setAdminMetrics] = useState<AdminMetrics>({
+      revenue: '$0',
+      activeSubs: 0,
+      totalUsers: 0,
+      pageViews: 0,
+      revenueChange: '+0%',
+      subsChange: '+0%',
+      usersChange: '+0%',
+      viewsChange: '+0%'
+   });
    const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
    const [adminLoading, setAdminLoading] = useState(false);
    const [adminLinks, setAdminLinks] = useState<any[]>([]);
    const [adminTickets, setAdminTickets] = useState<Ticket[]>([]);
    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+   const [selectedUserDetails, setSelectedUserDetails] = useState<{ profile: any; linksCount: number } | null>(null);
+   const [userDetailLoading, setUserDetailLoading] = useState(false);
 
    // Login State
    const [email, setEmail] = useState('');
@@ -1227,19 +1318,30 @@ const SuperAdmin: React.FC = () => {
             email: p.email || 'unknown',
             avatar: p.avatar_url || '/defaultavatar.jpg',
             plan: (p.plan || 'free').toLowerCase() === 'agency' ? 'Agency' : (p.plan || 'free').toLowerCase() === 'pro' ? 'Pro' : 'Free',
-            status: 'Active',
-            joined: p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '—'
+            status: p.is_active === false ? 'Inactive' : 'Active',
+            joined: p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '-'
          }));
 
          const activeSubs = profiles.filter((p) => (p.plan || '').toLowerCase() !== 'free').length;
          const pageViews = await fetchPageViewsCount();
+         const deltas = await fetchAdminMetricDeltas();
+         const pctChange = (curr: number, prev: number) => {
+            if (prev <= 0) return curr > 0 ? '+100%' : '+0%';
+            const val = ((curr - prev) / prev) * 100;
+            return `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`;
+         };
+         const dv = deltas || { totalUsers: profiles.length, prevUsers: profiles.length, pageViews7d: pageViews, pageViewsPrev7d: pageViews, activeSubs, activeSubsPrev: activeSubs };
 
          setAdminUsers(mappedUsers);
          setAdminMetrics({
             revenue: '$0',
             activeSubs,
             totalUsers: profiles.length,
-            pageViews
+            pageViews,
+            revenueChange: '+0%',
+            subsChange: pctChange(dv.activeSubs, dv.activeSubsPrev),
+            usersChange: pctChange(profiles.length, dv.prevUsers),
+            viewsChange: pctChange(dv.pageViews7d, dv.pageViewsPrev7d)
          });
 
          const [recentProfiles, recentLinks, linksForAdmin, ticketsForAdmin] = await Promise.all([
@@ -1280,6 +1382,43 @@ const SuperAdmin: React.FC = () => {
       } finally {
          setAdminLoading(false);
       }
+   };
+
+   const handleToggleStatus = async (id: string, next: 'Active' | 'Inactive') => {
+      setAdminUsers(prev => prev.map(u => u.id === id ? { ...u, status: next } : u));
+      const updated = await setUserStatus(id, next === 'Active');
+      if (!updated) {
+         toast.error('Failed to update status');
+         setAdminUsers(prev => prev.map(u => u.id === id ? { ...u, status: next === 'Active' ? 'Inactive' : 'Active' } : u));
+      }
+   };
+
+   const handleChangePlan = async (id: string, plan: 'Free' | 'Pro' | 'Agency') => {
+      setAdminUsers(prev => prev.map(u => u.id === id ? { ...u, plan } : u));
+      const payload = await updateUserPlan(id, plan.toLowerCase() as any);
+      if (!payload) {
+         toast.error('Failed to update plan');
+         // revert fetch
+         loadAdminData();
+      }
+   };
+
+   const handleDeleteUser = async (id: string) => {
+      const ok = await deleteUserWithData(id);
+      if (!ok) {
+         toast.error('Failed to delete user');
+         return;
+      }
+      setAdminUsers(prev => prev.filter(u => u.id !== id));
+      toast.success('User deleted');
+   };
+
+   const handleViewUser = async (id: string) => {
+      setSelectedUserId(id);
+      setUserDetailLoading(true);
+      const details = await fetchUserDetails(id);
+      if (details) setSelectedUserDetails(details);
+      setUserDetailLoading(false);
    };
 
    const handleLogin = async (e: React.FormEvent) => {
@@ -1451,7 +1590,16 @@ const SuperAdmin: React.FC = () => {
    const renderContent = () => {
       switch (activeTab) {
          case 'analytics': return <AnalyticsDashboard metrics={adminMetrics} activity={activityFeed} loading={adminLoading} onExport={handleOverviewExport} />;
-         case 'users': return <UserManagement users={adminUsers} loading={adminLoading} />;
+         case 'users': return (
+            <UserManagement
+               users={adminUsers}
+               loading={adminLoading}
+               onToggleStatus={handleToggleStatus}
+               onDeleteUser={handleDeleteUser}
+               onChangePlan={handleChangePlan}
+               onViewUser={handleViewUser}
+            />
+         );
          case 'pricing': return <PricingManagement />;
          case 'settings': return <AdminSettings />;
          case 'reports': return <ReportsCenter users={adminUsers} links={adminLinks} tickets={adminTickets} />;
@@ -1461,6 +1609,7 @@ const SuperAdmin: React.FC = () => {
    };
 
    return (
+      <>
       <div className="min-h-screen bg-background text-primary flex selection:bg-indigo-500/30">
          {/* Sidebar */}
          <aside className="hidden lg:flex flex-col w-72 bg-surface border-r border-border h-screen sticky top-0 overflow-hidden">
@@ -1596,6 +1745,51 @@ const SuperAdmin: React.FC = () => {
             </div>
          </main>
       </div>
+
+      {selectedUserId && (
+         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-surface border border-border rounded-3xl w-full max-w-lg p-6 relative">
+               <button className="absolute top-4 right-4 text-secondary hover:text-primary" onClick={() => { setSelectedUserId(null); setSelectedUserDetails(null); }}>
+                  <X className="w-5 h-5" />
+               </button>
+               <h3 className="text-xl font-bold mb-4">User Details</h3>
+               {userDetailLoading || !selectedUserDetails ? (
+                  <div className="text-secondary text-sm">Loading user...</div>
+               ) : (
+                  <div className="space-y-3">
+                     <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-0.5">
+                           <img src={selectedUserDetails.profile.avatar_url || '/defaultavatar.jpg'} className="w-full h-full rounded-full object-cover border-2 border-surface" />
+                        </div>
+                        <div>
+                           <p className="font-bold">{selectedUserDetails.profile.username || selectedUserDetails.profile.email}</p>
+                           <p className="text-xs text-secondary">{selectedUserDetails.profile.email}</p>
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="p-3 rounded-xl bg-surfaceHighlight border border-border">
+                           <p className="text-secondary text-xs uppercase font-bold">Plan</p>
+                           <p className="font-semibold">{(selectedUserDetails.profile.plan || 'free').toUpperCase()}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-surfaceHighlight border border-border">
+                           <p className="text-secondary text-xs uppercase font-bold">Status</p>
+                           <p className="font-semibold">{selectedUserDetails.profile.is_active === false ? 'Inactive' : 'Active'}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-surfaceHighlight border border-border">
+                           <p className="text-secondary text-xs uppercase font-bold">Joined</p>
+                           <p className="font-semibold">{selectedUserDetails.profile.created_at ? new Date(selectedUserDetails.profile.created_at).toLocaleDateString() : '-'}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-surfaceHighlight border border-border">
+                           <p className="text-secondary text-xs uppercase font-bold">Links</p>
+                           <p className="font-semibold">{selectedUserDetails.linksCount}</p>
+                        </div>
+                     </div>
+                  </div>
+               )}
+            </div>
+         </div>
+      )}
+      </>
    );
 };
 

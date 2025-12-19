@@ -96,6 +96,8 @@ interface ProfileConfig {
    bio: string;
    avatar: string;
    coverImage: string;
+   plan?: string;
+   is_active?: boolean;
    theme: 'simple' | 'dark' | 'midnight' | 'sunset' | 'ocean' | 'forest' | 'pastel' | 'retro' | 'mint' | 'air' | 'custom';
    customThemeUrl?: string; // New field
    fontColor: string; // 'auto' | '#000000' | '#ffffff'
@@ -341,11 +343,11 @@ const SortableLinkItem: React.FC<{
       <div
          ref={setNodeRef}
          style={style}
-         className="group bg-surface border border-border rounded-2xl p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-md"
-      >
-         <div className="flex items-start gap-3">
-            <div
-               {...attributes}
+               className="group bg-surface border border-border rounded-2xl p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-md"
+            >
+               <div className="flex items-start gap-3">
+                  <div
+                     {...attributes}
                {...listeners}
                className="mt-4 cursor-grab active:cursor-grabbing text-secondary hover:text-primary p-1 rounded-md hover:bg-surfaceHighlight transition-colors"
             >
@@ -376,7 +378,10 @@ const SortableLinkItem: React.FC<{
                         <Pencil className="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 text-secondary opacity-0 group-hover/field:opacity-50 transition-opacity pointer-events-none" />
                      </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+               <div className="flex items-center gap-2 shrink-0">
+                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-border bg-surfaceHighlight text-secondary">
+                        <Layers className="w-3 h-3" /> Link
+                     </span>
                      <label className="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" checked={link.active} onChange={() => onUpdate(link.id, { active: !link.active })} className="sr-only peer" />
                         <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
@@ -949,6 +954,8 @@ const Dashboard: React.FC = () => {
       bio: '',
       avatar: '/defaultavatar.jpg',
       coverImage: '',
+      plan: undefined,
+      is_active: true,
       theme: 'simple',
       fontColor: 'auto',
       buttonStyle: 'rounded',
@@ -1011,13 +1018,26 @@ const Dashboard: React.FC = () => {
 
             // 1. Set Profile
             if (profile) {
+               if (profile.is_active === false) {
+                  toast.error('Your account has been deactivated.');
+                  await signOut();
+                  navigate('/login');
+                  return;
+               }
                setProfileConfig(prev => ({
                   ...prev,
                   username: profile.username,
                   bio: profile.bio || prev.bio,
                   avatar: (profile.avatar_url && !profile.avatar_url.includes('unsplash.com')) ? profile.avatar_url : '/defaultavatar.jpg',
                   coverImage: (profile.cover_image_url && !profile.cover_image_url.includes('unsplash.com')) ? profile.cover_image_url : '',
+                  plan: profile.plan,
+                  is_active: profile.is_active
                }));
+            } else {
+               // If profile is missing (deleted), log out
+               await signOut();
+               navigate('/login');
+               return;
             }
 
             // 2. Set Appearance
@@ -1386,7 +1406,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex-1 overflow-hidden">
                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{profileConfig.username || 'User'}</p>
-                     <p className="text-xs text-secondary truncate">Free Plan</p>
+                     <p className="text-xs text-secondary truncate">{profileConfig.plan ? `${profileConfig.plan.charAt(0).toUpperCase()}${profileConfig.plan.slice(1)} Plan` : 'Plan'}</p>
                   </div>
                   <LogOut className="w-4 h-4 text-red-500" />
                </div>
@@ -1428,7 +1448,7 @@ const Dashboard: React.FC = () => {
                         </div>
                         <div className="flex-1 overflow-hidden">
                            <p className="text-sm font-medium truncate">{profileConfig.username || 'User'}</p>
-                           <p className="text-xs text-secondary truncate">Free Plan</p>
+                           <p className="text-xs text-secondary truncate">{profileConfig.plan ? `${profileConfig.plan.charAt(0).toUpperCase()}${profileConfig.plan.slice(1)} Plan` : 'Plan'}</p>
                         </div>
                         <LogOut className="w-4 h-4 text-red-500" />
                      </div>

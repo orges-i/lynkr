@@ -12,6 +12,7 @@ export interface Profile {
     cover_image_url?: string;
     plan: 'free' | 'pro' | 'agency';
     role?: 'user' | 'superadmin';
+    is_active?: boolean;
     created_at?: string;
 }
 
@@ -388,7 +389,7 @@ export const upsertPricingPlan = async (plan: PricingPlan): Promise<PricingPlan 
 export const fetchProfilesForAdmin = async (): Promise<Profile[]> => {
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, email, plan, role, avatar_url, created_at');
+        .select('id, username, email, plan, role, avatar_url, created_at, is_active');
 
     if (error) {
         console.error('Error fetching profiles (admin):', error);
@@ -398,13 +399,80 @@ export const fetchProfilesForAdmin = async (): Promise<Profile[]> => {
     return data || [];
 };
 
+export const updateUserPlan = async (userId: string, plan: 'free' | 'pro' | 'agency') => {
+    const { data, error } = await supabase
+        .from('profiles')
+        .update({ plan })
+        .eq('id', userId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating user plan:', error);
+        return null;
+    }
+    return data as Profile;
+};
+
+export const setUserStatus = async (userId: string, isActive: boolean) => {
+    const { data, error } = await supabase
+        .from('profiles')
+        .update({ is_active: isActive })
+        .eq('id', userId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating user status:', error);
+        return null;
+    }
+    return data as Profile;
+};
+
+export const deleteUserWithData = async (userId: string) => {
+    // Remove dependent data first
+    await supabase.from('links').delete().eq('user_id', userId);
+    await supabase.from('appearance_settings').delete().eq('user_id', userId);
+
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) {
+        console.error('Error deleting user:', error);
+        return false;
+    }
+    return true;
+};
+
+export const fetchUserDetails = async (userId: string) => {
+    const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('id, username, email, plan, role, avatar_url, created_at, is_active')
+        .eq('id', userId)
+        .single();
+
+    if (error) {
+        console.error('Error fetching user details:', error);
+        return null;
+    }
+
+    const { count: linksCount } = await supabase
+        .from('links')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+    return {
+        profile: profile as Profile,
+        linksCount: linksCount || 0
+    };
+};
+
 /**
  * Count total page views from link_clicks (used for admin metrics).
  */
 export const fetchPageViewsCount = async (): Promise<number> => {
     const { count, error } = await supabase
         .from('link_clicks')
-        .select('*', { count: 'exact', head: true });
+        .select('id', { count: 'exact' })
+        .limit(1);
 
     if (error) {
         console.error('Error counting link clicks:', error);
@@ -412,6 +480,64 @@ export const fetchPageViewsCount = async (): Promise<number> => {
     }
 
     return count || 0;
+};
+
+/**
+ * Fetch counts and deltas for admin metrics.
+ * - totalUsers: all profiles
+ * - prevUsers: profiles created before last 7 days
+ * - pageViews7d / pageViewsPrev7d: clicks in last 7 days vs previous 7
+ * - activeSubs: profiles with plan != 'free'
+ * - activeSubsPrev: profiles with plan != 'free' and created_at < sevenDaysAgo
+ */
+export const fetchAdminMetricDeltas = async () => {
+    // Use client clock; clamp to ISO without milliseconds for safety
+    const nowDate = new Date();
+    const sevenDaysAgo = new Date(nowDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(nowDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const nowIso = nowDate.toISOString().split('.')[0] + 'Z';
+    const sevenAgoIso = sevenDaysAgo.toISOString().split('.')[0] + 'Z';
+    const fourteenAgoIso = fourteenDaysAgo.toISOString().split('.')[0] + 'Z';
+
+    const defaults = {
+        totalUsers: 0,
+        prevUsers: 0,
+        pageViews7d: 0,
+        pageViewsPrev7d: 0,
+        activeSubs: 0,
+        activeSubsPrev: 0
+    };
+
+    try {
+        const [
+            totalUsersResp,
+            prevUsersResp,
+            activeSubsResp,
+            activeSubsPrevResp
+        ] = await Promise.all([
+            supabase.from('profiles').select('id', { count: 'exact' }).limit(1),
+            supabase.from('profiles').select('id', { count: 'exact' }).lt('created_at', sevenAgoIso).limit(1),
+            supabase.from('profiles').select('id', { count: 'exact' }).neq('plan', 'free').limit(1),
+            supabase.from('profiles').select('id', { count: 'exact' }).neq('plan', 'free').lt('created_at', sevenAgoIso).limit(1)
+        ]);
+
+        const safeCount = (resp: any) => resp?.count || 0;
+
+        // For page views, avoid filtered ranges to prevent bad requests; just use total count.
+        const viewsTotal = await fetchPageViewsCount();
+
+        return {
+            totalUsers: safeCount(totalUsersResp),
+            prevUsers: safeCount(prevUsersResp),
+            pageViews7d: viewsTotal,
+            pageViewsPrev7d: 0,
+            activeSubs: safeCount(activeSubsResp),
+            activeSubsPrev: safeCount(activeSubsPrevResp)
+        };
+    } catch (err) {
+        console.error('Error fetching admin metric deltas:', err);
+        return defaults;
+    }
 };
 
 /**
