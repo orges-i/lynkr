@@ -430,6 +430,8 @@ const SortableLinkItem: React.FC<{
                   <div className="flex-1 min-w-0">
                      <div className="relative group/field">
                         <input
+                           id={`link-title-${link.id}`}
+                           name={`link-title-${link.id}`}
                            type="text"
                            value={link.title}
                            onChange={(e) => onUpdate(link.id, { title: e.target.value })}
@@ -440,6 +442,8 @@ const SortableLinkItem: React.FC<{
                      </div>
                      <div className="relative group/field mt-1">
                         <input
+                           id={`link-url-${link.id}`}
+                           name={`link-url-${link.id}`}
                            type="text"
                            value={link.url}
                            onChange={(e) => onUpdate(link.id, { url: e.target.value })}
@@ -451,7 +455,15 @@ const SortableLinkItem: React.FC<{
                   </div>
                <div className="flex items-center gap-2 shrink-0">
                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" checked={link.active} onChange={() => onUpdate(link.id, { active: !link.active })} className="sr-only peer" />
+                        <input
+                           id={`link-active-${link.id}`}
+                           name={`link-active-${link.id}`}
+                           type="checkbox"
+                           checked={link.active}
+                           onChange={() => onUpdate(link.id, { active: !link.active })}
+                           className="sr-only peer"
+                           aria-label="Toggle link visibility"
+                        />
                         <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
                      </label>
                   </div>
@@ -583,7 +595,7 @@ const LinksView: React.FC<{
                className="h-14 px-4 flex items-center gap-2 border border-border justify-center rounded-2xl bg-surface text-primary text-base"
                onClick={onOpenContacts}
             >
-               <Phone className="w-4 h-4" /> Contact info
+               <Phone className="w-4 h-4" /> Add Contact Info
             </Button>
          </div>
 
@@ -1161,6 +1173,7 @@ const Dashboard: React.FC = () => {
                   plan: profile.plan,
                   is_active: profile.is_active
                }));
+               setContactInfo(profile.contact_info || {});
             } else {
                // If profile is missing (deleted), log out
                await signOut();
@@ -1323,7 +1336,6 @@ const Dashboard: React.FC = () => {
          try {
             const supabaseUpdates: Partial<SupabaseLink> = { ...(updates as Partial<SupabaseLink>) };
             // Strip client-only fields
-            delete (supabaseUpdates as any).show_icon;
             delete (supabaseUpdates as any).thumbnailFile;
 
             if (Object.keys(supabaseUpdates).length === 0) return;
@@ -1504,6 +1516,12 @@ const Dashboard: React.FC = () => {
       });
       setContactInfo(next);
       setContactDrawerOpen(false);
+      // Persist to profile
+      if (user) {
+         updateProfile(user.id, { contact_info: next as any }).catch(() => {
+            toast.error('Failed to save contact info');
+         });
+      }
       toast.success('Contact info updated');
    };
 

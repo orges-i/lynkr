@@ -69,6 +69,8 @@ const Hero: React.FC = () => {
             <div className="relative flex items-center bg-surface dark:bg-black border border-border rounded-full p-2 pl-6 shadow-2xl">
               <span className="text-secondary font-medium select-none text-lg">lynkr.com/</span>
               <input
+                id="hero-username"
+                name="username"
                 type="text"
                 placeholder="yourname"
                 className="bg-transparent border-none outline-none text-primary font-bold placeholder-zinc-500/50 w-full py-2 text-lg"

@@ -2,6 +2,13 @@ import { supabase } from './supabase';
 
 // -- Types --
 
+export interface ContactInfo {
+    phone?: string;
+    email?: string;
+    whatsapp?: string;
+    linkedin?: string;
+}
+
 export interface Profile {
     id: string;
     username: string;
@@ -14,6 +21,7 @@ export interface Profile {
     role?: 'user' | 'superadmin';
     is_active?: boolean;
     created_at?: string;
+    contact_info?: ContactInfo | null;
 }
 
 export interface Link {
@@ -26,6 +34,7 @@ export interface Link {
     clicks_count?: number;
     thumbnail_url?: string;
     created_at?: string;
+    show_icon?: boolean;
 }
 
 export interface AppearanceSettings {
@@ -139,6 +148,7 @@ export const createLink = async (userId: string, link: { title: string; url: str
                 url: link.url,
                 position: link.position,
                 active: true,
+                show_icon: true
             },
         ])
         .select()

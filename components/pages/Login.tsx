@@ -49,6 +49,8 @@ const Login: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Email address</label>
               <input
+                id="login-email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -63,11 +65,13 @@ const Login: React.FC = () => {
                 <a href="#" className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-white transition-colors">Forgot password?</a>
               </div>
               <input
+                id="login-password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-zinc-50 dark:bg-background border border-zinc-200 dark:border-white/10 rounded-lg px-4 py-3 text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500 dark:focus:border-white/30 focus:ring-1 focus:ring-indigo-500 dark:focus:ring-white/30 transition-all placeholder:text-zinc-400"
-                placeholder="••••••••"
+                placeholder="********"
                 required
               />
             </div>

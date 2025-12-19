@@ -15,7 +15,9 @@ import {
     Facebook,
     Youtube,
     Github,
-    Mail
+    Mail,
+    Phone,
+    MessageCircle
 } from 'lucide-react';
 
 const PublicProfile: React.FC = () => {
@@ -184,6 +186,8 @@ const PublicProfile: React.FC = () => {
     };
 
 
+    const contact = profile.contact_info as any;
+
     return (
         <div
             className={`min-h-screen w-full flex flex-col items-center transition-all duration-500 ${themeClass} ${fontClass}`}
@@ -223,6 +227,48 @@ const PublicProfile: React.FC = () => {
                     </p>
                 )}
 
+                {/* Contact Row */}
+                {contact && (contact.phone || contact.email || contact.whatsapp || contact.linkedin) && (
+                    <div className="w-full flex items-center justify-center gap-3 mb-8">
+                        {contact.phone && (
+                            <a
+                                href={`tel:${contact.phone}`}
+                                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105 ${forceLightMode ? 'bg-black/10 border border-black/10 text-black' : 'bg-white/10 border border-white/10 text-white'}`}
+                            >
+                                <Phone className="w-5 h-5" />
+                            </a>
+                        )}
+                        {contact.email && (
+                            <a
+                                href={`mailto:${contact.email}`}
+                                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105 ${forceLightMode ? 'bg-black/10 border border-black/10 text-black' : 'bg-white/10 border border-white/10 text-white'}`}
+                            >
+                                <Mail className="w-5 h-5" />
+                            </a>
+                        )}
+                        {contact.whatsapp && (
+                            <a
+                                href={`https://wa.me/${contact.whatsapp}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105 ${forceLightMode ? 'bg-black/10 border border-black/10 text-black' : 'bg-white/10 border border-white/10 text-white'}`}
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                            </a>
+                        )}
+                        {contact.linkedin && (
+                            <a
+                                href={contact.linkedin}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105 ${forceLightMode ? 'bg-black/10 border border-black/10 text-black' : 'bg-white/10 border border-white/10 text-white'}`}
+                            >
+                                <Linkedin className="w-5 h-5" />
+                            </a>
+                        )}
+                    </div>
+                )}
+
                 {/* Links List */}
                 <div className="w-full space-y-4">
                     {links.map((link) => (
@@ -234,15 +280,17 @@ const PublicProfile: React.FC = () => {
                             onClick={() => trackLinkClick(link.id)}
                             className={btnClasses}
                         >
-                            {link.thumbnail_url ? (
-                                <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden shadow-sm">
-                                    <img src={link.thumbnail_url} alt="" className="w-full h-full object-cover" />
-                                </div>
-                            ) : getSocialIcon(link.url) ? (
-                                <div className="shrink-0">
-                                    {getSocialIcon(link.url)}
-                                </div>
-                            ) : null}
+                            {link.show_icon !== false && (
+                                link.thumbnail_url ? (
+                                    <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden shadow-sm">
+                                        <img src={link.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                ) : getSocialIcon(link.url) ? (
+                                    <div className="shrink-0">
+                                        {getSocialIcon(link.url)}
+                                    </div>
+                                ) : null
+                            )}
                             <span className="truncate">{link.title}</span>
                         </a>
                     ))}
