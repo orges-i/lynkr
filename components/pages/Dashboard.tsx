@@ -521,6 +521,7 @@ const SortableLinkItem: React.FC<{
 
                <input
                   id={`thumb-upload-${link.id}`}
+                  name={`thumb-upload-${link.id}`}
                   type="file"
                   className="hidden"
                   accept="image/*"
@@ -543,8 +544,23 @@ const LinksView: React.FC<{
    onOpenContacts: () => void,
    isDarkTheme: boolean,
    onOpenProfile: () => void,
-   handleShareProfile: () => void
-}> = ({ links, onAdd, onDelete, onUpdate, onOpenContacts, isDarkTheme, onOpenProfile, handleShareProfile }) => {
+   handleShareProfile: () => void,
+   loading: boolean
+}> = ({ links, onAdd, onDelete, onUpdate, onOpenContacts, isDarkTheme, onOpenProfile, handleShareProfile, loading }) => {
+
+   if (loading) {
+      return (
+         <div className="max-w-2xl mx-auto w-full animate-slide-up pb-24 space-y-4">
+            <div className="mb-6 flex flex-col gap-3">
+               <div className="h-14 rounded-2xl bg-surfaceHighlight animate-pulse" />
+               <div className="h-14 rounded-2xl bg-surfaceHighlight animate-pulse" />
+            </div>
+            {[...Array(3)].map((_, i) => (
+               <div key={i} className="h-32 rounded-2xl bg-surfaceHighlight animate-pulse" />
+            ))}
+         </div>
+      );
+   }
 
    return (
       <div className="max-w-2xl mx-auto w-full animate-slide-up pb-24">
@@ -617,8 +633,18 @@ const LinksView: React.FC<{
 
 const AppearanceView: React.FC<{
    config: ProfileConfig,
-   onUpdate: (updates: Partial<ProfileConfig> | { avatar?: File, coverImage?: File, customTheme?: File }) => void
-}> = ({ config, onUpdate }) => {
+   onUpdate: (updates: Partial<ProfileConfig> | { avatar?: File, coverImage?: File, customTheme?: File }) => void,
+   loading?: boolean
+}> = ({ config, onUpdate, loading }) => {
+   if (loading) {
+      return (
+         <div className="max-w-2xl mx-auto w-full animate-slide-up space-y-6 pb-24">
+            {[...Array(4)].map((_, i) => (
+               <div key={i} className="h-24 rounded-2xl bg-surfaceHighlight animate-pulse" />
+            ))}
+         </div>
+      );
+   }
    // Refs for file inputs
    const avatarInputRef = React.useRef<HTMLInputElement>(null);
    const coverInputRef = React.useRef<HTMLInputElement>(null);
@@ -647,13 +673,14 @@ const AppearanceView: React.FC<{
                      <Button variant="secondary" size="sm" onClick={() => coverInputRef.current?.click()}>
                         <Camera className="w-4 h-4 mr-2" /> Change Cover
                      </Button>
-                     <input
-                        ref={coverInputRef}
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => {
-                           const file = e.target.files?.[0];
+                    <input
+                       ref={coverInputRef}
+                       name="cover-image"
+                       type="file"
+                       className="hidden"
+                       accept="image/*"
+                       onChange={(e) => {
+                          const file = e.target.files?.[0];
                            if (file) onUpdate({ coverImage: file });
                         }}
                      />
@@ -678,13 +705,14 @@ const AppearanceView: React.FC<{
                      <Button variant="secondary" size="sm" className="w-full" onClick={() => avatarInputRef.current?.click()}>
                         <Upload className="w-4 h-4 mr-2" /> Upload
                      </Button>
-                     <input
-                        ref={avatarInputRef}
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => {
-                           const file = e.target.files?.[0];
+                 <input
+                    ref={avatarInputRef}
+                    name="avatar-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                       const file = e.target.files?.[0];
                            if (file) onUpdate({ avatar: file });
                         }}
                      />
@@ -769,13 +797,14 @@ const AppearanceView: React.FC<{
                   <div className="p-3 bg-surface text-center text-sm font-medium capitalize">
                      Custom
                   </div>
-                  <input
-                     ref={themeInputRef}
-                     type="file"
-                     className="hidden"
-                     accept="image/*"
-                     onChange={(e) => {
-                        const file = e.target.files?.[0];
+                 <input
+                    ref={themeInputRef}
+                    name="custom-theme-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                       const file = e.target.files?.[0];
                         if (file) onUpdate({ customTheme: file });
                      }}
                   />
@@ -792,10 +821,13 @@ const AppearanceView: React.FC<{
                </div>
                <label className="relative inline-flex items-center cursor-pointer">
                   <input
+                     id="show-brand-tag"
+                     name="show-brand-tag"
                      type="checkbox"
                      checked={config.showBrandTag}
                      onChange={() => onUpdate({ showBrandTag: !config.showBrandTag })}
                      className="sr-only peer"
+                     aria-label="Toggle LYNKR branding"
                   />
                   <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                </label>
@@ -984,11 +1016,23 @@ const SettingsView: React.FC<{
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
                         <label className="text-xs font-semibold text-secondary uppercase mb-1 block">Username</label>
-                        <input type="text" defaultValue={profileConfig.username || (user?.user_metadata?.username)} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm" />
+                        <input
+                           id="account-username"
+                           name="account-username"
+                           type="text"
+                           defaultValue={profileConfig.username || (user?.user_metadata?.username)}
+                           className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm"
+                        />
                      </div>
                      <div>
                         <label className="text-xs font-semibold text-secondary uppercase mb-1 block">Email</label>
-                        <input type="email" defaultValue={user?.email || 'user@example.com'} className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm" />
+                        <input
+                           id="account-email"
+                           name="account-email"
+                           type="email"
+                           defaultValue={user?.email || 'user@example.com'}
+                           className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-sm"
+                        />
                      </div>
                   </div>
                   <div className="pt-2">
@@ -1008,6 +1052,8 @@ const SettingsView: React.FC<{
                      <div>
                         <label className="text-xs font-semibold text-secondary uppercase mb-1 block">Meta Title</label>
                         <input
+                           id="seo-title"
+                           name="seo-title"
                            type="text"
                            placeholder="Title that shows in Google"
                            value={localSeo.title}
@@ -1525,11 +1571,11 @@ const Dashboard: React.FC = () => {
       toast.success('Contact info updated');
    };
 
-   const renderView = () => {
-      switch (currentView) {
-         case 'links':
-            return (
-               <DndContext
+const renderView = () => {
+   switch (currentView) {
+      case 'links':
+         return (
+            <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
                   onDragEnd={handleReorderLinks}
@@ -1537,20 +1583,22 @@ const Dashboard: React.FC = () => {
                   <LinksView
                      links={links}
                      onAdd={handleCreateLink}
-                     onDelete={handleDeleteClick}
-                     onUpdate={handleUpdateLink}
-                     onOpenContacts={openContactDrawer}
-                     isDarkTheme={theme === 'dark'}
-                     onOpenProfile={handleOpenProfile}
-                     handleShareProfile={handleShareProfile}
-                  />
-               </DndContext>
-            );
-         case 'appearance':
-            return <AppearanceView
-               config={profileConfig}
-               onUpdate={handleUpdateConfig}
-            />;
+                  onDelete={handleDeleteClick}
+                  onUpdate={handleUpdateLink}
+                  onOpenContacts={openContactDrawer}
+                  isDarkTheme={theme === 'dark'}
+                  onOpenProfile={handleOpenProfile}
+                  handleShareProfile={handleShareProfile}
+                  loading={loading}
+               />
+            </DndContext>
+         );
+      case 'appearance':
+         return <AppearanceView
+            config={profileConfig}
+            onUpdate={handleUpdateConfig}
+            loading={loading}
+         />;
          case 'analytics':
             return <AnalyticsView />;
          case 'settings':
@@ -1728,8 +1776,12 @@ const Dashboard: React.FC = () => {
                      </Button>
                   </div>
 
-                  <div className="scale-[0.85] origin-center transition-all duration-300 hover:scale-[0.87] mt-8">
-                     <PhonePreview links={links} config={profileConfig} contacts={contactInfo} />
+                  <div className="scale-[0.85] origin-center transition-all duration-300 hover:scale-[0.87] mt-8 w-[320px] h-[640px] flex items-center justify-center">
+                     {loading ? (
+                        <div className="w-full h-full rounded-[36px] border border-border bg-surfaceHighlight animate-pulse" />
+                     ) : (
+                        <PhonePreview links={links} config={profileConfig} contacts={contactInfo} />
+                     )}
                   </div>
                </aside>
             )}
@@ -1760,11 +1812,14 @@ const Dashboard: React.FC = () => {
                               <label className="text-xs font-semibold text-secondary uppercase">Phone</label>
                               <label className="inline-flex items-center gap-2 text-xs text-secondary">
                                  <span>{contactToggles.phone ? 'On' : 'Off'}</span>
-                                 <input
+                                <input
+                                    id="contact-phone-toggle"
+                                    name="contact-phone-toggle"
                                     type="checkbox"
                                     className="sr-only"
                                     checked={contactToggles.phone}
                                     onChange={(e) => handleContactToggle('phone', e.target.checked)}
+                                    aria-label="Toggle phone contact"
                                  />
                                  <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.phone ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
                                     <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.phone ? 'translate-x-5' : ''}`}></div>
@@ -1772,6 +1827,8 @@ const Dashboard: React.FC = () => {
                               </label>
                            </div>
                            <input
+                              id="contact-phone"
+                              name="contact-phone"
                               type="tel"
                               value={contactDraft.phone || ''}
                               onChange={(e) => handleContactInputChange('phone', e.target.value)}
@@ -1786,10 +1843,13 @@ const Dashboard: React.FC = () => {
                               <label className="inline-flex items-center gap-2 text-xs text-secondary">
                                  <span>{contactToggles.email ? 'On' : 'Off'}</span>
                                  <input
+                                    id="contact-email-toggle"
+                                    name="contact-email-toggle"
                                     type="checkbox"
                                     className="sr-only"
                                     checked={contactToggles.email}
                                     onChange={(e) => handleContactToggle('email', e.target.checked)}
+                                    aria-label="Toggle email contact"
                                  />
                                  <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.email ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
                                     <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.email ? 'translate-x-5' : ''}`}></div>
@@ -1797,6 +1857,8 @@ const Dashboard: React.FC = () => {
                               </label>
                            </div>
                            <input
+                              id="contact-email"
+                              name="contact-email"
                               type="email"
                               value={contactDraft.email || ''}
                               onChange={(e) => handleContactInputChange('email', e.target.value)}
@@ -1812,10 +1874,13 @@ const Dashboard: React.FC = () => {
                                  <label className="inline-flex items-center gap-2 text-xs text-secondary">
                                     <span>{contactToggles.whatsapp ? 'On' : 'Off'}</span>
                                     <input
+                                       id="contact-whatsapp-toggle"
+                                       name="contact-whatsapp-toggle"
                                        type="checkbox"
                                        className="sr-only"
                                        checked={contactToggles.whatsapp}
                                        onChange={(e) => handleContactToggle('whatsapp', e.target.checked)}
+                                       aria-label="Toggle WhatsApp contact"
                                     />
                                     <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.whatsapp ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
                                        <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.whatsapp ? 'translate-x-5' : ''}`}></div>
@@ -1823,6 +1888,8 @@ const Dashboard: React.FC = () => {
                                  </label>
                               </div>
                               <input
+                                 id="contact-whatsapp"
+                                 name="contact-whatsapp"
                                  type="text"
                                  value={contactDraft.whatsapp || ''}
                                  onChange={(e) => handleContactInputChange('whatsapp', e.target.value)}
@@ -1837,10 +1904,13 @@ const Dashboard: React.FC = () => {
                                  <label className="inline-flex items-center gap-2 text-xs text-secondary">
                                     <span>{contactToggles.linkedin ? 'On' : 'Off'}</span>
                                     <input
+                                       id="contact-linkedin-toggle"
+                                       name="contact-linkedin-toggle"
                                        type="checkbox"
                                        className="sr-only"
                                        checked={contactToggles.linkedin}
                                        onChange={(e) => handleContactToggle('linkedin', e.target.checked)}
+                                       aria-label="Toggle LinkedIn contact"
                                     />
                                     <div className={`w-10 h-5 rounded-full border border-border relative transition-colors ${contactToggles.linkedin ? 'bg-primary/80 border-primary/60' : 'bg-surfaceHighlight'}`}>
                                        <div className={`absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-background transition-transform ${contactToggles.linkedin ? 'translate-x-5' : ''}`}></div>
@@ -1848,6 +1918,8 @@ const Dashboard: React.FC = () => {
                                  </label>
                               </div>
                               <input
+                                 id="contact-linkedin"
+                                 name="contact-linkedin"
                                  type="url"
                                  value={contactDraft.linkedin || ''}
                                  onChange={(e) => handleContactInputChange('linkedin', e.target.value)}

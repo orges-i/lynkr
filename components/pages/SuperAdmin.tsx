@@ -369,6 +369,8 @@ const UserManagement: React.FC<{
                <div className="relative group w-full sm:w-auto">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary group-focus-within:text-indigo-500 transition-colors" />
                   <input
+                     id="admin-search-users"
+                     name="admin-search-users"
                      type="text"
                      placeholder="Search users..."
                      value={searchTerm}
@@ -625,6 +627,8 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => Promise<void> }
             <div className="group">
                <label className="text-xs font-bold text-secondary uppercase mb-2 block">Plan Name</label>
                <input
+                  id={`plan-name-${editedPlan.id || 'new'}`}
+                  name="plan-name"
                   type="text"
                   value={editedPlan.name}
                   onChange={e => handleChange('name', e.target.value)}
@@ -635,6 +639,8 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => Promise<void> }
                <div className="flex-1">
                   <label className="text-xs font-bold text-secondary uppercase mb-2 block">Price</label>
                   <input
+                     id={`plan-price-${editedPlan.id || 'new'}`}
+                     name="plan-price"
                      type="text"
                      value={editedPlan.price}
                      onChange={e => handleChange('price', e.target.value)}
@@ -644,6 +650,8 @@ const PricingEditor: React.FC<{ plan: Plan; onSave: (p: Plan) => Promise<void> }
                <div className="flex-1">
                   <label className="text-xs font-bold text-secondary uppercase mb-2 block">Period</label>
                   <input
+                     id={`plan-period-${editedPlan.id || 'new'}`}
+                     name="plan-period"
                      type="text"
                      value={editedPlan.period}
                      onChange={e => handleChange('period', e.target.value)}
@@ -1155,10 +1163,12 @@ const BugTracker: React.FC = () => {
                      <button onClick={() => setSelectedTicket(null)} className="p-2 hover:bg-surfaceHighlight rounded-full transition-colors"><X className="w-5 h-5" /></button>
                   </div>
 
-                  <div className="space-y-6 overflow-y-auto flex-1 pr-2">
+                     <div className="space-y-6 overflow-y-auto flex-1 pr-2">
                      <div>
                         <label className="text-xs font-bold text-secondary uppercase mb-2 block">Title</label>
                         <input
+                           id="ticket-title"
+                           name="ticket-title"
                            type="text"
                            value={selectedTicket.title}
                            onChange={(e) => setSelectedTicket({ ...selectedTicket, title: e.target.value })}

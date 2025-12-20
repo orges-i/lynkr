@@ -1,39 +1,44 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import ScrollToTop from './components/ScrollToTop';
-import BackToTop from './components/ui/BackToTop';
-import { ThemeProvider } from './context/ThemeContext';
-import { PricingProvider } from './context/PricingContext';
-import { SettingsProvider, useSettings } from './context/SettingsContext';
-import { AuthProvider } from './context/AuthContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { Toaster } from 'react-hot-toast';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
+import BackToTop from "./components/ui/BackToTop";
+import { ThemeProvider } from "./context/ThemeContext";
+import { PricingProvider } from "./context/PricingContext";
+import { SettingsProvider, useSettings } from "./context/SettingsContext";
+import { AuthProvider } from "./context/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Toaster } from "react-hot-toast";
 
 // Pages
-import Home from './components/Home';
-import Login from './components/pages/Login';
-import Signup from './components/pages/Signup';
-import Showcase from './components/pages/Showcase';
-import About from './components/pages/About';
-import Blog from './components/pages/Blog';
-import Changelog from './components/pages/Changelog';
-import Careers from './components/pages/Careers';
-import Legal from './components/pages/Legal';
-import Dashboard from './components/pages/Dashboard';
-import SuperAdmin from './components/pages/SuperAdmin';
-import PublicProfile from './components/pages/PublicProfile';
-import MaintenancePage from './components/MaintenancePage';
+import Home from "./components/Home";
+import Login from "./components/pages/Login";
+import Signup from "./components/pages/Signup";
+import Showcase from "./components/pages/Showcase";
+import About from "./components/pages/About";
+import Blog from "./components/pages/Blog";
+import Changelog from "./components/pages/Changelog";
+import Careers from "./components/pages/Careers";
+import Legal from "./components/pages/Legal";
+import Dashboard from "./components/pages/Dashboard";
+import SuperAdmin from "./components/pages/SuperAdmin";
+import PublicProfile from "./components/pages/PublicProfile";
+import MaintenancePage from "./components/MaintenancePage";
 
 // Layout wrapper for public pages to include Navbar/Footer
-const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const PublicLayout: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   return (
     <>
       <Navbar />
-      <main className="flex-grow">
-        {children}
-      </main>
+      <main className="flex-grow">{children}</main>
       <Footer />
       <BackToTop />
     </>
@@ -44,7 +49,7 @@ const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 const AppContent: React.FC = () => {
   const location = useLocation();
   const { maintenanceMode } = useSettings();
-  const isSuperadminRoute = location.pathname.startsWith('/superadmin');
+  const isSuperadminRoute = location.pathname.startsWith("/superadmin");
   const shouldBlock = !isSuperadminRoute && maintenanceMode;
 
   return (
@@ -57,21 +62,91 @@ const AppContent: React.FC = () => {
       ) : (
         <Routes>
           {/* Dashboard Route - No Navbar/Footer (Protected) */}
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* SuperAdmin Route - Internal Auth Handling */}
+          {/* SuperAdmin Route - Separate page for admin dashboard */}
           <Route path="/superadmin" element={<SuperAdmin />} />
 
           {/* Public Routes - With Navbar/Footer */}
-          <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
-          <Route path="/login" element={<PublicLayout><Login /></PublicLayout>} />
-          <Route path="/signup" element={<PublicLayout><Signup /></PublicLayout>} />
-          <Route path="/showcase" element={<PublicLayout><Showcase /></PublicLayout>} />
-          <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
-          <Route path="/blog" element={<PublicLayout><Blog /></PublicLayout>} />
-          <Route path="/changelog" element={<PublicLayout><Changelog /></PublicLayout>} />
-          <Route path="/careers" element={<PublicLayout><Careers /></PublicLayout>} />
-          <Route path="/legal" element={<PublicLayout><Legal /></PublicLayout>} />
+          <Route
+            path="/"
+            element={
+              <PublicLayout>
+                <Home />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <PublicLayout>
+                <Login />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <PublicLayout>
+                <Signup />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/showcase"
+            element={
+              <PublicLayout>
+                <Showcase />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <PublicLayout>
+                <About />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/blog"
+            element={
+              <PublicLayout>
+                <Blog />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/changelog"
+            element={
+              <PublicLayout>
+                <Changelog />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/careers"
+            element={
+              <PublicLayout>
+                <Careers />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/legal"
+            element={
+              <PublicLayout>
+                <Legal />
+              </PublicLayout>
+            }
+          />
 
           {/* Public Profile Route (Catch-all) */}
           <Route path="/:username" element={<PublicProfile />} />
@@ -79,7 +154,7 @@ const AppContent: React.FC = () => {
       )}
     </div>
   );
-}
+};
 
 const App: React.FC = () => {
   return (
