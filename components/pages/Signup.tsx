@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 import { Reveal } from "../ui/Reveal";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
@@ -14,6 +14,7 @@ import {
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signUp } = useAuth();
   const { registrationsEnabled, loading: settingsLoading } = useSettings();
 
@@ -23,6 +24,15 @@ const Signup: React.FC = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [rateLimiter] = useState(() => new RateLimiter(5 * 60 * 1000, 3)); // 3 signup attempts per 5 minutes
+
+  // Prefill username if provided via query param (e.g., from hero claim form)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const desired = params.get("username");
+    if (desired) {
+      setUsername(desired.toLowerCase());
+    }
+  }, [location.search]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +148,7 @@ const Signup: React.FC = () => {
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                  lynkr.com/
+                  lynkr.me/
                 </span>
                 <input
                   id="signup-username"

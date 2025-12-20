@@ -4,9 +4,19 @@ import { Button } from './ui/Button';
 import { Reveal } from './ui/Reveal';
 import { useTheme } from '../context/ThemeContext';
 import Antigravity from './ui/Antigravity';
+import { useNavigate } from 'react-router-dom';
 
 const Hero: React.FC = () => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
+  const [desiredUsername, setDesiredUsername] = React.useState('');
+
+  const handleClaim = (e: React.FormEvent) => {
+    e.preventDefault();
+    const username = desiredUsername.trim().toLowerCase();
+    if (!username) return;
+    navigate(`/signup?username=${encodeURIComponent(username)}`);
+  };
 
   return (
     <div className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden min-h-[90vh] isolate">
@@ -64,20 +74,22 @@ const Hero: React.FC = () => {
 
         {/* High Conversion Input Field */}
         <Reveal delay={300} width="100%" className="max-w-md mx-auto mb-16 relative">
-          <form className="relative group w-full z-20" onSubmit={(e) => e.preventDefault()}>
+          <form className="relative group w-full z-20" onSubmit={handleClaim}>
             <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full opacity-20 group-hover:opacity-40 blur transition-opacity duration-500"></div>
             <div className="relative flex items-center bg-surface dark:bg-black border border-border rounded-full p-2 pl-6 shadow-2xl">
-              <span className="text-secondary font-medium select-none text-lg">lynkr.com/</span>
+              <span className="text-secondary font-medium select-none text-sm md:text-lg">lynkr.me/</span>
               <input
                 id="hero-username"
                 name="username"
                 type="text"
                 placeholder="yourname"
-                className="bg-transparent border-none outline-none text-primary font-bold placeholder-zinc-500/50 w-full py-2 text-lg"
+                value={desiredUsername}
+                onChange={(e) => setDesiredUsername(e.target.value)}
+                className="bg-transparent border-none outline-none text-primary font-bold placeholder-zinc-500/50 w-full py-2 text-sm md:text-lg"
                 autoComplete="off"
                 spellCheck="false"
               />
-              <Button size="lg" className="shrink-0 ml-2 rounded-full px-6 py-3">
+              <Button type="submit" size="lg" className="shrink-0 ml-2 rounded-full px-6 py-3">
                 Claim It
               </Button>
             </div>

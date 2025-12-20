@@ -1237,6 +1237,11 @@ const BugTracker: React.FC = () => {
 };
 
 const SuperAdmin: React.FC = () => {
+   useEffect(() => {
+      if (typeof window !== 'undefined') {
+         window.scrollTo({ top: 0, behavior: 'auto' });
+      }
+   }, []);
    const [isAuthenticated, setIsAuthenticated] = useState(false);
    const [loading, setLoading] = useState(true);
    const [activeTab, setActiveTab] = useState<TabType>('analytics');
@@ -1326,7 +1331,7 @@ const SuperAdmin: React.FC = () => {
             id: p.id,
             name: p.username || p.email || 'User',
             email: p.email || 'unknown',
-            avatar: p.avatar_url || '/defaultavatar.jpg',
+            avatar: p.avatar_url || '/assets/originalavatar.jpg',
             plan: (p.plan || 'free').toLowerCase() === 'agency' ? 'Agency' : (p.plan || 'free').toLowerCase() === 'pro' ? 'Pro' : 'Free',
             status: p.is_active === false ? 'Inactive' : 'Active',
             joined: p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : '-'
@@ -1769,7 +1774,7 @@ const SuperAdmin: React.FC = () => {
                   <div className="space-y-3">
                      <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-0.5">
-                           <img src={selectedUserDetails.profile.avatar_url || '/defaultavatar.jpg'} className="w-full h-full rounded-full object-cover border-2 border-surface" />
+                           <img src={selectedUserDetails.profile.avatar_url || '/assets/originalavatar.jpg'} className="w-full h-full rounded-full object-cover border-2 border-surface" />
                         </div>
                         <div>
                            <p className="font-bold">{selectedUserDetails.profile.username || selectedUserDetails.profile.email}</p>

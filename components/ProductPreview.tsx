@@ -43,7 +43,7 @@ const ProductPreview: React.FC = () => {
                   {/* Profile Section */}
                   <div className="flex flex-col items-center mb-8 w-full text-center mt-6">
                     <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 mb-4 border-4 border-background dark:border-black shadow-lg relative overflow-hidden">
-                      <img src="/defaultavatar.jpg" alt="Profile" className="w-full h-full object-cover opacity-90" />
+                      <img src="/assets/originalavatar.jpg" alt="Profile" className="w-full h-full object-cover opacity-90" />
                     </div>
                     <h3 className="text-xl font-bold text-primary mb-1">Your Name</h3>
                     <p className="text-sm text-secondary">Digital Creator & Artist</p>

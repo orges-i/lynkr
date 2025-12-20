@@ -241,7 +241,7 @@ const PublicProfile: React.FC = () => {
           className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white shadow-xl overflow-hidden mb-6 bg-white shrink-0`}
         >
           <img
-            src={profile.avatar_url || "/defaultavatar.jpg"}
+            src={profile.avatar_url || "/assets/originalavatar.jpg"}
             alt={profile.username}
             className="w-full h-full object-cover"
           />

@@ -293,7 +293,7 @@ const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig, contact
             <div className={`p-6 flex flex-col items-center -mt-12 relative z-10 ${textColorClass}`}>
                <div className="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden mb-4 bg-surface">
                   <img
-                     src={config.avatar || '/defaultavatar.jpg'}
+                     src={config.avatar || '/assets/originalavatar.jpg'}
                      alt="Avatar"
                      className="w-full h-full object-cover"
                   />
@@ -407,7 +407,7 @@ const SortableLinkItem: React.FC<{
       transition,
       zIndex: isDragging ? 50 : 'auto',
       opacity: isDragging ? 0.3 : 1,
-      touchAction: 'none'
+      touchAction: 'auto'
    };
 
    return (
@@ -417,13 +417,14 @@ const SortableLinkItem: React.FC<{
                className="group bg-surface border border-border rounded-2xl p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-md"
             >
                <div className="flex items-start gap-3">
-                  <div
-                     {...attributes}
-               {...listeners}
+            <div
+               {...attributes}
+      {...listeners}
                className="mt-4 cursor-grab active:cursor-grabbing text-secondary hover:text-primary p-1 rounded-md hover:bg-surfaceHighlight transition-colors"
-            >
-               <GripVertical className="w-5 h-5" />
-            </div>
+               style={{ touchAction: 'none' }}
+           >
+              <GripVertical className="w-5 h-5" />
+           </div>
 
             <div className="flex-1 space-y-3 min-w-0">
                <div className="flex items-center justify-between gap-4">
@@ -697,7 +698,7 @@ const AppearanceView: React.FC<{
                   <div className="flex flex-col items-center gap-3 shrink-0">
                      <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-border bg-surfaceHighlight">
                         <img
-                           src={config.avatar || '/defaultavatar.jpg'}
+                           src={config.avatar || '/assets/originalavatar.jpg'}
                            alt="Avatar"
                            className="w-full h-full object-cover"
                         />
@@ -1138,7 +1139,7 @@ const Dashboard: React.FC = () => {
    const [profileConfig, setProfileConfig] = useState<ProfileConfig>({
       username: '',
       bio: '',
-      avatar: '/defaultavatar.jpg',
+      avatar: '/assets/originalavatar.jpg',
       coverImage: '',
       plan: undefined,
       is_active: true,
@@ -1214,7 +1215,7 @@ const Dashboard: React.FC = () => {
                   ...prev,
                   username: profile.username,
                   bio: profile.bio || prev.bio,
-                  avatar: (profile.avatar_url && !profile.avatar_url.includes('unsplash.com')) ? profile.avatar_url : '/defaultavatar.jpg',
+                  avatar: (profile.avatar_url && !profile.avatar_url.includes('unsplash.com')) ? profile.avatar_url : '/assets/originalavatar.jpg',
                   coverImage: (profile.cover_image_url && !profile.cover_image_url.includes('unsplash.com')) ? profile.cover_image_url : '',
                   plan: profile.plan,
                   is_active: profile.is_active
@@ -1285,6 +1286,12 @@ const Dashboard: React.FC = () => {
          localStorage.setItem('lynkr-dashboard-view', currentView);
       }
    }, [currentView]);
+
+   useEffect(() => {
+      if (typeof window !== 'undefined') {
+         window.scrollTo({ top: 0, behavior: 'auto' });
+      }
+   }, []);
 
    const handleLogout = async () => {
       await signOut();

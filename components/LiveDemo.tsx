@@ -22,7 +22,7 @@ const LiveDemo: React.FC = () => {
                   <div className="w-full max-w-[350px] bg-black border border-zinc-800 rounded-[2.5rem] p-6 shadow-xl transform rotate-0 md:-rotate-2 hover:rotate-0 transition-transform duration-500">
                      <div className="flex flex-col items-center text-center">
                         <div className="w-24 h-24 rounded-full border-4 border-black shadow-lg mb-4 relative overflow-hidden">
-                           <img src="/defaultavatar.jpg" alt="Creator" className="w-full h-full object-cover" />
+                           <img src="/assets/originalavatar.jpg" alt="Creator" className="w-full h-full object-cover" />
                         </div>
                         <h3 className="text-xl font-bold text-white mb-1">Sarah Creator</h3>
                         <p className="text-zinc-500 text-sm mb-6">Digital Artist & Designer</p>
