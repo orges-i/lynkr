@@ -92,6 +92,7 @@ interface LinkItem {
    position: number;
    thumbnail_url?: string;
    show_icon?: boolean;
+   created_at?: string;
 }
 
 type ContactInfo = {
@@ -125,6 +126,9 @@ interface ProfileConfig {
    seoTitle?: string;
    seoDescription?: string;
    showBrandTag: boolean;
+   showUpdatedChip: boolean;
+   avatarFrame?: 'classic' | 'glow' | 'ghost';
+   linkAnimation?: 'none' | 'glow';
 }
 
 // -- Mock Data --
@@ -171,7 +175,7 @@ const SidebarItem: React.FC<{
    </button>
 );
 
-const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig, contacts?: ContactInfo }> = ({ links, config, contacts }) => {
+const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig, contacts?: ContactInfo, updatedLabel?: string }> = ({ links, config, contacts, updatedLabel }) => {
    const themeClass = themes[config.theme];
    const btnShapeClass = buttonStyles[config.buttonStyle];
 
@@ -291,15 +295,30 @@ const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig, contact
             )}
 
             <div className={`p-6 flex flex-col items-center -mt-12 relative z-10 ${textColorClass}`}>
-               <div className="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden mb-4 bg-surface">
-                  <img
-                     src={config.avatar || '/assets/originalavatar.jpg'}
-                     alt="Avatar"
-                     className="w-full h-full object-cover"
-                  />
+               <div className="relative mb-4">
+                  <div
+                     className={`w-24 h-24 rounded-full overflow-hidden bg-surface transition-all duration-500 ${
+                        config.avatarFrame === 'ghost'
+                           ? 'border-2 border-white/30 shadow-none backdrop-blur-sm'
+                           : config.avatarFrame === 'glow'
+                           ? 'avatar-glow'
+                           : 'border-4 border-white shadow-md'
+                     }`}
+                  >
+                     <img
+                        src={config.avatar || '/assets/originalavatar.jpg'}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                     />
+                  </div>
                </div>
 
                <h2 className="text-xl font-bold mb-1">{config.username}</h2>
+               {config.showUpdatedChip && (
+                  <div className={`text-[11px] font-medium mb-3 ${isLight ? 'text-black/50' : 'text-white/70'}`} style={customTextStyle}>
+                     {updatedLabel || 'Updated just now'}
+                  </div>
+               )}
                <p className="text-center text-sm opacity-90 mb-6 leading-relaxed">
                   {config.bio}
                </p>
@@ -354,7 +373,16 @@ const PhonePreview: React.FC<{ links: LinkItem[], config: ProfileConfig, contact
 
                <div className="w-full space-y-3">
                   {links.filter(l => l.active).map(link => (
-                     <div key={link.id} className={`${btnClasses} group transform-gpu`}>
+                     <div
+                        key={link.id}
+                        className={`${btnClasses} group transform-gpu flex-col items-start justify-center relative overflow-visible pt-4 ${
+                           config.linkAnimation === 'glow'
+                              ? (isLight ? 'link-glow-dark' : 'link-glow-light')
+                              : config.linkAnimation === 'pulse'
+                              ? 'link-pulse'
+                              : ''
+                        }`}
+                     >
                         <div className="flex items-center justify-center gap-3 w-full">
                            {link.show_icon !== false && (
                               link.thumbnail_url ? (
@@ -513,11 +541,12 @@ const SortableLinkItem: React.FC<{
                      <button
                         onClick={() => onDelete(link.id)}
                         className="p-2 rounded-lg hover:bg-red-500/10 text-secondary hover:text-red-500 transition-colors"
-                        title="Delete Link"
-                     >
-                        <Trash2 className="w-4 h-4" />
-                     </button>
-                  </div>
+                       title="Delete Link"
+                    >
+                       <Trash2 className="w-4 h-4" />
+                    </button>
+                 </div>
+
                </div>
 
                <input
@@ -635,8 +664,9 @@ const LinksView: React.FC<{
 const AppearanceView: React.FC<{
    config: ProfileConfig,
    onUpdate: (updates: Partial<ProfileConfig> | { avatar?: File, coverImage?: File, customTheme?: File }) => void,
-   loading?: boolean
-}> = ({ config, onUpdate, loading }) => {
+   loading?: boolean,
+   updatedLabel?: string
+}> = ({ config, onUpdate, loading, updatedLabel: _updatedLabel }) => {
    if (loading) {
       return (
          <div className="max-w-2xl mx-auto w-full animate-slide-up space-y-6 pb-24">
@@ -741,6 +771,36 @@ const AppearanceView: React.FC<{
                      </div>
                   </div>
                </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {[
+                     { id: 'classic', label: 'Classic', desc: 'Clean ring' },
+                     { id: 'glow', label: 'Glow', desc: 'Soft halo' },
+                     { id: 'ghost', label: 'Ghost', desc: 'Translucent outline' },
+                  ].map((frame) => (
+                     <button
+                        key={frame.id}
+                        onClick={() => onUpdate({ avatarFrame: frame.id as ProfileConfig['avatarFrame'] })}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${config.avatarFrame === frame.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-surfaceHighlight'}`}
+                     >
+                        <div
+                           className={`w-12 h-12 rounded-full overflow-hidden bg-surfaceHighlight flex items-center justify-center transition-all ${
+                              frame.id === 'ghost'
+                                 ? 'border-2 border-white/30'
+                                 : frame.id === 'glow'
+                                 ? 'border-2 border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.18)] ring-4 ring-white/20'
+                                 : 'border-3 border-primary'
+                           }`}
+                        >
+                           <img src={config.avatar || '/assets/originalavatar.jpg'} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1">
+                           <div className="font-semibold text-sm">{frame.label}</div>
+                           <div className="text-xs text-secondary">{frame.desc}</div>
+                        </div>
+                     </button>
+                  ))}
+               </div>
             </div>
          </section>
 
@@ -832,6 +892,50 @@ const AppearanceView: React.FC<{
                   />
                   <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
                </label>
+            </div>
+         </section>
+
+         <section className="space-y-4">
+            <h3 className="font-semibold text-lg">Activity Badge</h3>
+            <div className="bg-surface border border-border rounded-2xl p-6 flex items-center justify-between">
+               <div>
+                  <h4 className="font-medium mb-1">Show “Updated” badge</h4>
+                  <p className="text-xs text-secondary">Display the “Updated … ago” chip below your username.</p>
+               </div>
+               <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                     id="show-updated-chip"
+                     name="show-updated-chip"
+                     type="checkbox"
+                     checked={config.showUpdatedChip}
+                     onChange={() => onUpdate({ showUpdatedChip: !config.showUpdatedChip })}
+                     className="sr-only peer"
+                     aria-label="Toggle updated badge"
+                  />
+                  <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+               </label>
+            </div>
+         </section>
+
+         <section className="space-y-4">
+            <h3 className="font-semibold text-lg">Animations</h3>
+            <div className="bg-surface border border-border rounded-2xl p-6">
+               <p className="text-xs text-secondary mb-4">Give your links a subtle halo glow. UI-only preview; off by default.</p>
+               <div className="flex flex-wrap gap-3">
+                  {[
+                     { id: 'none', label: 'None' },
+                     { id: 'glow', label: 'Halo Glow' },
+                     { id: 'pulse', label: 'Pulse Border' },
+                  ].map(anim => (
+                     <button
+                        key={anim.id}
+                        onClick={() => onUpdate({ linkAnimation: anim.id as ProfileConfig['linkAnimation'] })}
+                        className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${config.linkAnimation === anim.id ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:border-primary/40 text-secondary'}`}
+                     >
+                        {anim.label}
+                     </button>
+                  ))}
+               </div>
             </div>
          </section>
 
@@ -1131,6 +1235,41 @@ const Dashboard: React.FC = () => {
    // Debounce ref for auto-saving
    const debounceRef = React.useRef<NodeJS.Timeout | null>(null);
    const contentRef = React.useRef<HTMLDivElement | null>(null);
+   const formatRelativeTime = (dateString?: string) => {
+      if (!dateString) return null;
+      const target = new Date(dateString).getTime();
+      if (Number.isNaN(target)) return null;
+      const diffMs = Date.now() - target;
+      const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr = Math.floor(diffMin / 60);
+      const diffDay = Math.floor(diffHr / 24);
+      if (diffDay >= 1) return `${diffDay}d ago`;
+      if (diffHr >= 1) return `${diffHr}h ago`;
+      if (diffMin >= 1) return `${diffMin}m ago`;
+      return "Just now";
+   };
+
+   const computeLatestTimestamp = (
+      profileUpdated?: string,
+      profileCreated?: string,
+      appearanceUpdated?: string,
+      linkTimestamps: (string | undefined)[] = []
+   ) => {
+      const candidates: (string | undefined)[] = [
+         profileUpdated,
+         profileCreated,
+         appearanceUpdated,
+         ...linkTimestamps,
+      ];
+      return candidates
+         .filter(Boolean)
+         .sort(
+            (a, b) =>
+               (new Date(b as string).getTime() || 0) -
+               (new Date(a as string).getTime() || 0)
+         )[0] as string | undefined;
+   };
 
    // -- Delete Modal State --
    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -1151,8 +1290,16 @@ const Dashboard: React.FC = () => {
       font: 'sans',
       seoTitle: '',
       seoDescription: '',
-      showBrandTag: true
+      showBrandTag: true,
+      showUpdatedChip: true,
+      avatarFrame: 'classic',
+      linkAnimation: 'none'
    });
+   const [profileUpdatedAt, setProfileUpdatedAt] = useState<string | undefined>();
+   const [profileCreatedAt, setProfileCreatedAt] = useState<string | undefined>();
+   const [appearanceUpdatedAt, setAppearanceUpdatedAt] = useState<string | undefined>();
+   const [lastUpdatedIso, setLastUpdatedIso] = useState<string | null>(null);
+   const [lastUpdatedLabel, setLastUpdatedLabel] = useState<string | null>(null);
 
    // DnD Sensors
    const sensors = useSensors(
@@ -1220,6 +1367,8 @@ const Dashboard: React.FC = () => {
                   plan: profile.plan,
                   is_active: profile.is_active
                }));
+               setProfileUpdatedAt(profile.updated_at);
+               setProfileCreatedAt(profile.created_at);
                setContactInfo(profile.contact_info || {});
             } else {
                // If profile is missing (deleted), log out
@@ -1242,7 +1391,9 @@ const Dashboard: React.FC = () => {
                   seoTitle: settings.seo_title || '',
                   seoDescription: settings.seo_description || '',
                   showBrandTag: settings.show_brand_tag ?? true,
+                  showUpdatedChip: settings.show_updated_chip ?? true,
                }));
+               setAppearanceUpdatedAt(settings.updated_at);
             }
 
             // 3. Set Links
@@ -1255,13 +1406,24 @@ const Dashboard: React.FC = () => {
                   clicks_count: l.clicks_count || 0,
                   position: l.position || 0,
                   thumbnail_url: l.thumbnail_url,
-                  show_icon: (l as any).show_icon !== false
+                  show_icon: (l as any).show_icon !== false,
+                  created_at: (l as any).created_at
                })));
             }
-         } catch (error) {
+
+            // Compute last updated label for preview
+            const freshest = computeLatestTimestamp(
+               profile?.updated_at,
+               profile?.created_at,
+               settings?.updated_at,
+               (userLinks || []).map((l: any) => l.created_at)
+            );
+            setLastUpdatedIso(freshest || null);
+            setLastUpdatedLabel(formatRelativeTime(freshest));
+          } catch (error) {
             console.error('Error loading dashboard:', error);
             toast.error('Failed to load your dashboard data.');
-         } finally {
+          } finally {
             setLoading(false);
          }
       };
@@ -1293,6 +1455,19 @@ const Dashboard: React.FC = () => {
       }
    }, []);
 
+   useEffect(() => {
+      const latest = computeLatestTimestamp(
+         profileUpdatedAt,
+         profileCreatedAt,
+         appearanceUpdatedAt,
+         [...links.map(l => l.created_at), lastUpdatedIso || undefined]
+      );
+      if (latest && latest !== lastUpdatedIso) {
+         setLastUpdatedIso(latest);
+         setLastUpdatedLabel(formatRelativeTime(latest));
+      }
+   }, [profileUpdatedAt, profileCreatedAt, appearanceUpdatedAt, links, lastUpdatedIso]);
+
    const handleLogout = async () => {
       await signOut();
       navigate('/login');
@@ -1304,6 +1479,7 @@ const Dashboard: React.FC = () => {
       if (!user) return;
       const newPosition = links.length; // Simple append
       const tempId = `temp-${Date.now()}`;
+      const nowIso = new Date().toISOString();
 
       // Optimistic Update
       const optimisticLink: LinkItem = {
@@ -1314,7 +1490,8 @@ const Dashboard: React.FC = () => {
          clicks_count: 0,
          position: newPosition,
          thumbnail_url: undefined,
-         show_icon: true
+         show_icon: true,
+         created_at: nowIso
       };
       setLinks([...links, optimisticLink]); // Add to bottom to match newPosition logic
 
@@ -1338,9 +1515,12 @@ const Dashboard: React.FC = () => {
          if (created) {
             // Replace temp ID with real ID
             setLinks(currentLinks => currentLinks.map(l =>
-               l.id === tempId ? { ...l, id: created.id, position: created.position } : l
+               l.id === tempId ? { ...l, id: created.id, position: created.position, created_at: (created as any).created_at || nowIso } : l
             ));
             toast.success('Link created');
+            const freshest = (created as any).created_at || nowIso;
+            setLastUpdatedIso(freshest);
+            setLastUpdatedLabel(formatRelativeTime(freshest));
          }
       } catch (error) {
          toast.error('Failed to create link');
@@ -1382,6 +1562,13 @@ const Dashboard: React.FC = () => {
          l.id === id ? { ...l, ...updates } : l
       ));
 
+      // If title/url changes, bump last updated in preview to now
+      if ('title' in updates || 'url' in updates) {
+         const nowIso = new Date().toISOString();
+         setLastUpdatedIso(nowIso);
+         setLastUpdatedLabel(formatRelativeTime(nowIso));
+      }
+
       // 4. Debounced API Call for regular updates
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -1390,7 +1577,6 @@ const Dashboard: React.FC = () => {
             const supabaseUpdates: Partial<SupabaseLink> = { ...(updates as Partial<SupabaseLink>) };
             // Strip client-only fields
             delete (supabaseUpdates as any).thumbnailFile;
-
             if (Object.keys(supabaseUpdates).length === 0) return;
 
             await updateLinkInDb(id, supabaseUpdates);
@@ -1474,7 +1660,7 @@ const Dashboard: React.FC = () => {
 
       // ... existing debounce logic ...
       const profileFields = ['username', 'bio', 'avatar', 'coverImage'];
-      const appearanceFields = ['theme', 'buttonStyle', 'buttonFill', 'buttonShadow', 'font', 'customThemeUrl', 'fontColor', 'seoTitle', 'seoDescription', 'showBrandTag'];
+      const appearanceFields = ['theme', 'buttonStyle', 'buttonFill', 'buttonShadow', 'font', 'customThemeUrl', 'fontColor', 'seoTitle', 'seoDescription', 'showBrandTag', 'showUpdatedChip'];
 
       const profileUpdates: Partial<Profile> = {};
       const appearanceUpdates: Partial<AppearanceSettings> = {};
@@ -1494,6 +1680,7 @@ const Dashboard: React.FC = () => {
             else if (key === 'seoTitle') appearanceUpdates.seo_title = val as string;
             else if (key === 'seoDescription') appearanceUpdates.seo_description = val as string;
             else if (key === 'showBrandTag') appearanceUpdates.show_brand_tag = val as boolean;
+            else if (key === 'showUpdatedChip') (appearanceUpdates as any).show_updated_chip = val as boolean;
             else (appearanceUpdates as any)[key] = val;
          }
       });
@@ -1605,6 +1792,7 @@ const renderView = () => {
             config={profileConfig}
             onUpdate={handleUpdateConfig}
             loading={loading}
+            updatedLabel={lastUpdatedLabel || 'Updated just now'}
          />;
          case 'analytics':
             return <AnalyticsView />;
@@ -1787,7 +1975,7 @@ const renderView = () => {
                      {loading ? (
                         <div className="w-full h-full rounded-[36px] border border-border bg-surfaceHighlight animate-pulse" />
                      ) : (
-                        <PhonePreview links={links} config={profileConfig} contacts={contactInfo} />
+                        <PhonePreview links={links} config={profileConfig} contacts={contactInfo} updatedLabel={lastUpdatedLabel || 'Updated just now'} />
                      )}
                   </div>
                </aside>

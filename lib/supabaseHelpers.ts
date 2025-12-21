@@ -22,6 +22,7 @@ export interface Profile {
   role?: "user" | "superadmin";
   is_active?: boolean;
   created_at?: string;
+  updated_at?: string;
   contact_info?: ContactInfo | null;
 }
 
@@ -69,6 +70,8 @@ export interface AppearanceSettings {
   seo_title?: string;
   seo_description?: string;
   show_brand_tag?: boolean;
+  updated_at?: string;
+  show_updated_chip?: boolean;
 }
 
 export interface PricingPlan {

@@ -212,6 +212,42 @@ const PublicProfile: React.FC = () => {
   };
 
   const contact = profile.contact_info as any;
+  const formatRelativeTime = (dateString?: string) => {
+    if (!dateString) return null;
+    const target = new Date(dateString).getTime();
+    if (Number.isNaN(target)) return null;
+    const diffMs = Date.now() - target;
+    const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHr = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay >= 1) return `${diffDay}d ago`;
+    if (diffHr >= 1) return `${diffHr}h ago`;
+    if (diffMin >= 1) return `${diffMin}m ago`;
+    return "Just now";
+  };
+
+  // Pick the freshest timestamp we have (profile -> appearance -> newest link)
+  const getLatestTimestamp = () => {
+    const candidates: (string | undefined)[] = [
+      profile.updated_at,
+      profile.created_at,
+      appearance.updated_at,
+    ];
+    // Add latest link created_at if present
+    if (links.length) {
+      const newestLink = links
+        .map((l) => l.created_at)
+        .filter(Boolean)
+        .sort((a, b) => (new Date(b!).getTime() || 0) - (new Date(a!).getTime() || 0))[0];
+      if (newestLink) candidates.push(newestLink);
+    }
+    return candidates.filter(Boolean).sort((a, b) => {
+      return (new Date(b!).getTime() || 0) - (new Date(a!).getTime() || 0);
+    })[0];
+  };
+
+  const lastUpdatedLabel = formatRelativeTime(getLatestTimestamp());
 
   return (
     <div
@@ -249,13 +285,23 @@ const PublicProfile: React.FC = () => {
 
         {/* Profile Info */}
         <h1
-          className={`text-2xl sm:text-3xl font-bold mb-2 text-center ${textColorClass}`}
+          className={`text-2xl sm:text-3xl font-bold mb-1 text-center ${textColorClass}`}
         >
           @{profile.username}
         </h1>
+        {appearance.show_updated_chip !== false && lastUpdatedLabel && (
+          <div
+            className={`text-[11px] sm:text-xs font-medium mb-3 transition-all ${
+              forceLightMode ? "text-black/40" : "text-white/60"
+            } ${textColorClass}`}
+            style={customTextStyle}
+          >
+            Updated {lastUpdatedLabel}
+          </div>
+        )}
         {profile.bio && (
           <p
-            className={`text-center text-lg sm:text-xl opacity-90 mb-10 max-w-lg leading-relaxed ${textColorClass}`}
+            className={`text-center text-lg sm:text-xl opacity-90 mb-8 max-w-lg leading-relaxed ${textColorClass}`}
           >
             {profile.bio}
           </p>
@@ -330,6 +376,9 @@ const PublicProfile: React.FC = () => {
             // Skip rendering invalid URLs (prevents protocol injection)
             if (!validatedUrl) return null;
 
+            const tagColor = forceLightMode
+              ? "bg-black/10 text-black/70 border border-black/10"
+              : "bg-white/10 text-white/80 border border-white/10";
             return (
               <a
                 key={link.id}
@@ -337,21 +386,23 @@ const PublicProfile: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackLinkClick(link.id)}
-                className={btnClasses}
+                className={`${btnClasses} flex-col !items-start !justify-center pt-4`}
               >
-                {link.show_icon !== false &&
-                  (link.thumbnail_url ? (
-                    <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden shadow-sm">
-                      <img
-                        src={link.thumbnail_url}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : getSocialIcon(link.url) ? (
-                    <div className="shrink-0">{getSocialIcon(link.url)}</div>
-                  ) : null)}
-                <span className="truncate">{link.title}</span>
+                <div className="flex items-center gap-3 w-full">
+                  {link.show_icon !== false &&
+                    (link.thumbnail_url ? (
+                      <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden shadow-sm">
+                        <img
+                          src={link.thumbnail_url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : getSocialIcon(link.url) ? (
+                      <div className="shrink-0">{getSocialIcon(link.url)}</div>
+                    ) : null)}
+                  <span className="truncate">{link.title}</span>
+                </div>
               </a>
             );
           })}
