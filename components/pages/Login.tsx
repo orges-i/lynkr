@@ -33,7 +33,14 @@ const Login: React.FC = () => {
     const { error } = await signIn(email, password);
 
     if (error) {
-      setError(sanitizeErrorMessage(error));
+      const message = error?.message?.toLowerCase() || "";
+      if (message.includes("email not confirmed")) {
+        setError(
+          "Please confirm your email first. Check your inbox for the confirmation link."
+        );
+      } else {
+        setError(sanitizeErrorMessage(error));
+      }
       setLoading(false);
     } else {
       navigate("/dashboard");
@@ -83,12 +90,12 @@ const Login: React.FC = () => {
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   Password
                 </label>
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-white transition-colors"
                 >
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <input
                 id="login-password"

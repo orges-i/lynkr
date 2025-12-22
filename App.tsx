@@ -21,6 +21,10 @@ import { Toaster } from "react-hot-toast";
 import Home from "./components/Home";
 import Login from "./components/pages/Login";
 import Signup from "./components/pages/Signup";
+import VerifyEmail from "./components/pages/VerifyEmail";
+import AuthCallback from "./components/pages/AuthCallback";
+import ForgotPassword from "./components/pages/ForgotPassword";
+import ResetPassword from "./components/pages/ResetPassword";
 import Showcase from "./components/pages/Showcase";
 import About from "./components/pages/About";
 import Blog from "./components/pages/Blog";
@@ -90,6 +94,38 @@ const AppContent: React.FC = () => {
             element={
               <PublicLayout>
                 <Login />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <PublicLayout>
+                <ForgotPassword />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/verify-email"
+            element={
+              <PublicLayout>
+                <VerifyEmail />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/auth/callback"
+            element={
+              <PublicLayout>
+                <AuthCallback />
+              </PublicLayout>
+            }
+          />
+          <Route
+            path="/auth/reset"
+            element={
+              <PublicLayout>
+                <ResetPassword />
               </PublicLayout>
             }
           />

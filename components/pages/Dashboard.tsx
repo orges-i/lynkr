@@ -344,6 +344,13 @@ const PhonePreview: React.FC<{
     }
   };
 
+  const activeLinks = links.filter((l) => l.active);
+  const emptyCardClass = `${btnShapeClass} w-full p-4 text-center text-sm font-medium border border-dashed ${
+    forceLightMode
+      ? "border-black/20 text-black/60 bg-black/5"
+      : "border-white/20 text-white/60 bg-white/5"
+  }`;
+
   return (
     <div
       className={`relative w-[300px] h-[600px] bg-black border-[8px] border-zinc-800 rounded-[3rem] shadow-2xl overflow-hidden ring-4 ring-black/5 ${fontClass}`}
@@ -472,9 +479,17 @@ const PhonePreview: React.FC<{
             )}
 
           <div className="w-full space-y-3">
-            {links
-              .filter((l) => l.active)
-              .map((link) => {
+            {activeLinks.length === 0 ? (
+              <div className={emptyCardClass}>
+                <div className="text-sm font-semibold mb-1">
+                  No links yet
+                </div>
+                <div className="text-xs opacity-80">
+                  Add your first link to see it here.
+                </div>
+              </div>
+            ) : (
+              activeLinks.map((link) => {
                 const displayAnimation =
                   selectedLinkAnimation || config.linkAnimation;
                 return (
@@ -509,7 +524,8 @@ const PhonePreview: React.FC<{
                     </div>
                   </div>
                 );
-              })}
+              })
+            )}
           </div>
         </div>
 
@@ -1794,6 +1810,13 @@ const Dashboard: React.FC = () => {
         console.error("Error loading dashboard:", error);
         toast.error("Failed to load your dashboard data.");
       } finally {
+        if (typeof window !== "undefined") {
+          const justConfirmed = sessionStorage.getItem("just_confirmed");
+          if (justConfirmed) {
+            sessionStorage.removeItem("just_confirmed");
+            toast.success("Welcome to your dashboard!");
+          }
+        }
         setLoading(false);
       }
     };

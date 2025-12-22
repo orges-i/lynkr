@@ -42,29 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signUp = async (email: string, password: string, username: string) => {
         try {
-            const { data, error } = await supabase.auth.signUp({
+            const redirectTo = `${window.location.origin}/auth/callback`;
+            const { error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: {
                         username,
                     },
+                    emailRedirectTo: redirectTo,
                 },
             });
 
             if (error) return { error };
-
-            toast.success('🎉 Welcome to LYNKR! Your dashboard is ready.', {
-                duration: 4000,
-                position: 'top-center',
-                style: {
-                    background: '#10B981',
-                    color: '#fff',
-                    fontWeight: '600',
-                    padding: '16px 24px',
-                    borderRadius: '12px',
-                },
-            });
 
             return { error: null };
         } catch (error) {

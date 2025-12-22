@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
+import toast from "react-hot-toast";
 import {
   validateEmail,
   validateUsername,
@@ -83,7 +84,9 @@ const Signup: React.FC = () => {
       setError(sanitizeErrorMessage(error));
       setLoading(false);
     } else {
-      navigate("/dashboard");
+      sessionStorage.setItem("pending_signup_email", email);
+      toast.success("Check your email to confirm your account.");
+      navigate("/verify-email");
     }
   };
 
