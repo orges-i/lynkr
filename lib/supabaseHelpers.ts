@@ -72,6 +72,8 @@ export interface AppearanceSettings {
   show_brand_tag?: boolean;
   updated_at?: string;
   show_updated_chip?: boolean;
+  avatar_frame?: "classic" | "glow" | "ghost";
+  link_animation?: "none" | "glow";
 }
 
 export interface PricingPlan {

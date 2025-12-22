@@ -28,6 +28,8 @@ const PublicProfile: React.FC = () => {
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLinkAnimation, setSelectedLinkAnimation] =
+    useState<"none" | "glow">("none");
 
   // Update document title dynamically
   useEffect(() => {
@@ -49,6 +51,7 @@ const PublicProfile: React.FC = () => {
 
         setProfile(data.profile);
         setAppearance(data.appearance);
+        setSelectedLinkAnimation(data.appearance.link_animation || "none");
 
         const userLinks = await fetchPublicLinksByUserId(data.profile.id);
         setLinks(userLinks);
@@ -184,6 +187,33 @@ const PublicProfile: React.FC = () => {
 
   const containerStyle = { ...customBackgroundStyle, ...customTextStyle };
 
+  // Avatar frame styles
+  const avatarFrameClass = (() => {
+    const base = "w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden mb-6 shrink-0";
+    switch (appearance.avatar_frame) {
+      case "glow":
+        return `${base} ring-4 ring-white/80 shadow-[0_0_35px_12px_rgba(255,255,255,0.25)] bg-white`;
+      case "ghost":
+        return `${base} ring-2 ring-white/40 bg-white/70 backdrop-blur-sm`;
+      case "classic":
+      default:
+        return `${base} ring-4 ring-white shadow-xl bg-white`;
+    }
+  })();
+
+  const normalizeLinkedInUrl = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    const lower = trimmed.toLowerCase();
+    if (lower.startsWith("http://") || lower.startsWith("https://")) {
+      return trimmed;
+    }
+    if (lower.includes("linkedin.com") || lower.includes("linked.in")) {
+      return `https://${trimmed}`;
+    }
+    return `https://www.linkedin.com/in/${trimmed.replace(/^@/, "")}`;
+  };
+
   // Social Icon Helper
   const getSocialIcon = (url: string) => {
     const lower = url.toLowerCase();
@@ -239,7 +269,10 @@ const PublicProfile: React.FC = () => {
       const newestLink = links
         .map((l) => l.created_at)
         .filter(Boolean)
-        .sort((a, b) => (new Date(b!).getTime() || 0) - (new Date(a!).getTime() || 0))[0];
+        .sort(
+          (a, b) =>
+            (new Date(b!).getTime() || 0) - (new Date(a!).getTime() || 0)
+        )[0];
       if (newestLink) candidates.push(newestLink);
     }
     return candidates.filter(Boolean).sort((a, b) => {
@@ -247,7 +280,9 @@ const PublicProfile: React.FC = () => {
     })[0];
   };
 
-  const lastUpdatedLabel = formatRelativeTime(getLatestTimestamp());
+  const rawUpdatedLabel = formatRelativeTime(getLatestTimestamp());
+  const lastUpdatedLabel =
+    rawUpdatedLabel === "Just now" ? "just now" : rawUpdatedLabel;
 
   return (
     <div
@@ -273,9 +308,7 @@ const PublicProfile: React.FC = () => {
         } pb-24 relative z-10`}
       >
         {/* Avatar */}
-        <div
-          className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white shadow-xl overflow-hidden mb-6 bg-white shrink-0`}
-        >
+        <div className={avatarFrameClass}>
           <img
             src={profile.avatar_url || "/assets/originalavatar.jpg"}
             alt={profile.username}
@@ -354,7 +387,7 @@ const PublicProfile: React.FC = () => {
               )}
               {contact.linkedin && (
                 <a
-                  href={contact.linkedin}
+                  href={normalizeLinkedInUrl(contact.linkedin)}
                   target="_blank"
                   rel="noreferrer"
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition-all hover:scale-105 ${
@@ -379,6 +412,8 @@ const PublicProfile: React.FC = () => {
             const tagColor = forceLightMode
               ? "bg-black/10 text-black/70 border border-black/10"
               : "bg-white/10 text-white/80 border border-white/10";
+            const displayAnimation = selectedLinkAnimation;
+
             return (
               <a
                 key={link.id}
@@ -386,7 +421,13 @@ const PublicProfile: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => trackLinkClick(link.id)}
-                className={`${btnClasses} flex-col !items-start !justify-center pt-4`}
+                className={`${btnClasses} flex-col !items-start !justify-center pt-4 relative overflow-hidden ${
+                  displayAnimation === "glow"
+                    ? forceLightMode
+                      ? "link-glow-dark"
+                      : "link-glow-light"
+                    : ""
+                }`}
               >
                 <div className="flex items-center gap-3 w-full">
                   {link.show_icon !== false &&
@@ -410,11 +451,9 @@ const PublicProfile: React.FC = () => {
 
         {/* Branding */}
         {appearance.show_brand_tag && (
-          <div className="mt-16 sm:mt-24 opacity-60 hover:opacity-100 transition-opacity">
+          <div className="mt-16 sm:mt-24 flex items-center justify-center text-[11px] font-medium text-white/60 hover:text-white/80 transition-colors">
             <RouterLink to="/" className="flex items-center gap-2">
-              <span className="font-bold tracking-[0.3em] text-xs sm:text-sm uppercase">
-                LYNKR
-              </span>
+              <span>Powered by LYNKR</span>
             </RouterLink>
           </div>
         )}

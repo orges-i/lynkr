@@ -9,6 +9,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import BackToTop from "./components/ui/BackToTop";
+import CustomCursor from "./components/ui/CustomCursor";
 import { ThemeProvider } from "./context/ThemeContext";
 import { PricingProvider } from "./context/PricingContext";
 import { SettingsProvider, useSettings } from "./context/SettingsContext";
@@ -54,6 +55,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-primary overflow-x-hidden selection:bg-indigo-500/30 flex flex-col transition-colors duration-300">
+      <CustomCursor />
       <ScrollToTop />
       <Toaster />
 
