@@ -497,9 +497,9 @@ const PhonePreview: React.FC<{
                     key={link.id}
                     className={`${btnClasses} group transform-gpu flex-col items-start justify-center relative overflow-hidden pt-4 ${
                       displayAnimation === "glow"
-                        ? isLight
-                          ? "link-glow-dark"
-                          : "link-glow-light"
+                        ? forceLightMode
+                          ? "link-glow-light"
+                          : "link-glow-dark"
                         : ""
                     }`}
                   >

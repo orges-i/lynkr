@@ -60,6 +60,7 @@
 .link-glow-light {
   position: relative;
   isolation: isolate;
+  overflow: visible;
 }
 
 .link-glow-light::before {
@@ -82,6 +83,7 @@
 .link-glow-dark {
   position: relative;
   isolation: isolate;
+  overflow: visible;
 }
 
 .link-glow-dark::before {

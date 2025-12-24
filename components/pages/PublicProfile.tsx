@@ -424,8 +424,8 @@ const PublicProfile: React.FC = () => {
                 className={`${btnClasses} flex-col !items-start !justify-center pt-4 relative overflow-hidden ${
                   displayAnimation === "glow"
                     ? forceLightMode
-                      ? "link-glow-dark"
-                      : "link-glow-light"
+                      ? "link-glow-light"
+                      : "link-glow-dark"
                     : ""
                 }`}
               >
