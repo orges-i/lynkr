@@ -1,91 +1,44 @@
 # LYNKR
 
-LYNKR is a modular link-in-bio platform built with a component-driven architecture. It focuses on customization, visual fidelity, and extensibility. The project is designed as a configurable system rather than a static link list, allowing a single page to be composed from interactive and media-rich modules.
-
-The application emphasizes modern frontend patterns, real-time editing, and advanced visual effects, supported by a scalable backend for authentication, data persistence, and analytics.
-
-## Architecture Overview
-
-* Component-first, modular design
-* Strong separation between presentation, editor logic, and data layer
-* Extensible module system for adding new content blocks without core refactors
-* Real-time state synchronization between editor and rendered view
+LYNKR is a link-in-bio web app with a public profile page and a private
+dashboard. It uses Supabase for auth, database, and storage.
 
 ## Features
+- Public profiles at `/:username` with theme and link display
+- Auth flows: sign up, email confirmation, login, password reset
+- Dashboard: create/update/reorder links, edit appearance settings, update
+  profile info, upload avatar/cover, manage contact info
+- Link click tracking (stored in Supabase)
+- Superadmin area at `/superadmin` for user management, pricing plans, tickets,
+  reports, and platform settings
+- Maintenance mode and registration toggles (global settings)
 
-### Visual System
+## Tech
+- React + Vite + TypeScript
+- Tailwind CSS
+- Supabase (Auth, Postgres, Storage)
+- React Router, @dnd-kit, react-hot-toast
 
-* Custom 3D background ("Antigravity Shard") implemented with React Three Fiber
-* Shader-based visual effects and particle systems
-* Glassmorphism-based UI
-* Smooth view and layout transitions
-* Fully responsive, mobile-first layout
+## Setup
+1. Install deps:
+```bash
+npm install
+```
+2. Create `.env.local` with:
+```bash
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+3. Run:
+```bash
+npm run dev
+```
 
-### Modular Content System
+## Scripts
+- `npm run dev`
+- `npm run build`
+- `npm run preview`
 
-* Bento-style widget layout
-* Support for rich embeds such as:
-
-  * Spotify
-  * Newsletter and form embeds
-  * Live status indicators
-  * Interactive content blocks
-* Component-based module registry for extensibility
-
-### Editor
-
-* Real-time visual editor
-* Drag-and-drop layout management
-* Theme, typography, and branding configuration
-* Immediate preview of layout and style changes
-
-### Analytics
-
-* Visitor tracking
-* Click-through metrics
-* Traffic source analysis
-
-## Tech Stack
-
-### Frontend
-
-* React 18
-* TypeScript
-* Tailwind CSS
-* Framer Motion
-* Lucide React
-
-### 3D and Graphics
-
-* Three.js
-* React Three Fiber
-
-### Prototyping
-
-* Google Studio (UI and interaction prototyping)
-
-### Backend and Authentication
-
-* Supabase
-* PostgreSQL
-* Authentication and session management
-* Storage and backend services
-
-### Development Environment
-
-* AntiGravity IDE (development workflow and tooling)
-
-## Project Goals
-
-* Provide a highly customizable link-in-bio system
-* Prioritize visual quality and interactive design
-* Maintain a scalable and maintainable codebase
-* Enable rapid extension through modular components
-
-## Status
-
-This project is under active development. APIs, schemas, and internal modules may evolve as the system matures.
-
-## License
-
-License information to be defined.
+## Notes
+- The dashboard analytics tab is a placeholder UI.
+- No automated tests are configured.
